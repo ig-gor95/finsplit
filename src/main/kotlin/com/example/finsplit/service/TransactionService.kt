@@ -8,6 +8,7 @@ import com.example.finsplit.dto.TransactionResponse
 import com.example.finsplit.dto.TransactionStatistics
 import com.example.finsplit.repository.TransactionRepository
 import com.example.finsplit.repository.UserRepository
+import org.slf4j.LoggerFactory
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.security.core.context.SecurityContextHolder
@@ -21,6 +22,8 @@ class TransactionService(
     private val transactionRepository: TransactionRepository,
     private val userRepository: UserRepository
 ) {
+
+    private val logger = LoggerFactory.getLogger(TransactionService::class.java)
 
     fun createTransaction(request: CreateTransactionRequest): TransactionResponse {
         val user = getCurrentUser()
@@ -85,9 +88,13 @@ class TransactionService(
     fun getTransactionById(id: UUID): TransactionResponse {
         val user = getCurrentUser()
         val transaction = transactionRepository.findById(id)
-            .orElseThrow { IllegalArgumentException("Transaction not found") }
+            .orElseThrow { 
+                logger.warn("Transaction not found: $id")
+                IllegalArgumentException("Transaction not found") 
+            }
 
         if (transaction.user.id != user.id) {
+            logger.warn("Unauthorized access attempt to transaction $id by user ${user.id}")
             throw IllegalAccessException("Unauthorized access to transaction")
         }
 

@@ -80,17 +80,23 @@ class FileUploadService(
                     val updated = updateTransaction(existing, parsed, fileName)
                     transactionRepository.save(updated)
                     updatedCount++
+                    logger.debug("Updated transaction: ${parsed.documentNumber}")
                 } else {
                     // Create new transaction
                     val newTransaction = createTransaction(user, parsed, externalId, fileName)
                     transactionRepository.save(newTransaction)
                     importedCount++
+                    logger.debug("Created new transaction: ${parsed.documentNumber}")
                 }
             } catch (e: Exception) {
-                errors.add("Failed to process transaction ${parsed.documentNumber}: ${e.message}")
+                val errorMsg = "Failed to process transaction ${parsed.documentNumber}: ${e.message}"
+                logger.error(errorMsg, e)
+                errors.add(errorMsg)
                 skippedCount++
             }
         }
+
+        logger.info("File upload completed for $fileName: imported=$importedCount, updated=$updatedCount, skipped=$skippedCount")
 
         return FileUploadResponse(
             fileName = fileName,
