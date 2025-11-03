@@ -2,6 +2,7 @@ package com.example.finsplit.parser
 
 import com.example.finsplit.domain.BankType
 import com.example.finsplit.domain.FileFormat
+import com.example.finsplit.domain.TransactionType
 import com.example.finsplit.dto.ParsedTransaction
 import org.springframework.stereotype.Component
 import java.io.BufferedReader
@@ -75,15 +76,13 @@ class OneCFormatParser : TransactionFileParser {
                 documentDate = date,
                 amount = amount,
                 transactionDate = date.atStartOfDay(),
-                accountNumber = data["ПлательщикСчет"],
-                payerName = data["Плательщик"],
-                payerInn = data["ПлательщикИНН"],
-                payerAccount = data["ПлательщикСчет"],
+                accountNumber = data["ПолучательСчет"],
                 recipientName = data["Получатель"],
                 recipientInn = data["ПолучательИНН"],
                 recipientAccount = data["ПолучательСчет"],
                 paymentPurpose = data["НазначениеПлатежа"],
-                currency = "RUB"
+                currency = "RUB",
+                transactionType = TransactionType.EXPENSE  // Default for 1C format, can be enhanced later
             )
         } catch (e: Exception) {
             null

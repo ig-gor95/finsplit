@@ -32,10 +32,7 @@ data class User(
     val createdAt: LocalDateTime = LocalDateTime.now(),
 
     @Column(nullable = false)
-    val updatedAt: LocalDateTime = LocalDateTime.now(),
-
-    @OneToMany(mappedBy = "user", cascade = [CascadeType.ALL], fetch = FetchType.LAZY)
-    val transactions: MutableList<Transaction> = mutableListOf()
+    val updatedAt: LocalDateTime = LocalDateTime.now()
 ) : UserDetails {
 
     override fun getAuthorities(): Collection<GrantedAuthority> = emptyList()

@@ -24,14 +24,18 @@ interface TransactionRepository : JpaRepository<Transaction, UUID> {
     
     fun findByUserIdAndCategory(userId: UUID, category: String, pageable: Pageable): Page<Transaction>
     
-    @Query("SELECT SUM(t.amount) FROM Transaction t WHERE t.user.id = :userId AND t.transactionType = :type")
+    @Query("SELECT SUM(t.amount) FROM Transaction t WHERE t.userId = :userId AND t.transactionType = :type")
     fun getTotalAmountByUserAndType(userId: UUID, type: TransactionType): BigDecimal?
     
-    @Query("SELECT t FROM Transaction t WHERE t.user.id = :userId AND t.transactionDate >= :startDate")
+    @Query("SELECT t FROM Transaction t WHERE t.userId = :userId AND t.transactionDate >= :startDate")
     fun findRecentTransactions(userId: UUID, startDate: LocalDateTime): List<Transaction>
     
     fun findByExternalId(externalId: String): Transaction?
     
     fun findByUserIdAndExternalIdIn(userId: UUID, externalIds: List<String>): List<Transaction>
+    
+    fun findByFileId(fileId: UUID, pageable: Pageable): Page<Transaction>
+    
+    fun countByFileId(fileId: UUID): Long
 }
 

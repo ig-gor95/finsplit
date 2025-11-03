@@ -13,18 +13,20 @@ data class Transaction(
     @Column(columnDefinition = "UUID")
     val id: UUID = UUID.randomUUID(),
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    val user: User,
+    @Column(name = "user_id", nullable = false)
+    val userId: UUID,
+
+    @Column(name = "account_id")
+    val accountId: UUID? = null,
+
+    @Column(name = "file_id")
+    val fileId: UUID? = null,
 
     @Column(nullable = false)
     val description: String,
 
-    @Column(nullable = false)
-    val amount: BigDecimal,
-
-    @Column(nullable = false)
-    val currency: String = "USD",
+    @Embedded
+    val amount: Money,
 
     @Column(nullable = false)
     val transactionDate: LocalDateTime,
@@ -55,15 +57,6 @@ data class Transaction(
 
     @Column
     val accountNumber: String? = null,
-
-    @Column
-    val payerName: String? = null,
-
-    @Column
-    val payerInn: String? = null,
-
-    @Column
-    val payerAccount: String? = null,
 
     @Column
     val recipientName: String? = null,

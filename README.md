@@ -257,6 +257,43 @@ Authorization: Bearer <token>
 
 Returns list of all supported bank types.
 
+### Accounts
+
+All account endpoints require authentication.
+
+#### Get all accounts
+```http
+GET /api/accounts
+Authorization: Bearer <token>
+```
+
+Returns list of all bank accounts for the authenticated user.
+
+Response:
+```json
+[
+  {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "accountNumber": "40702810607000072502",
+    "clientName": "ООО \"ШТУРМАН\"",
+    "inn": "2460117837",
+    "accountName": "расчетный счет",
+    "currency": "RUB",
+    "lastStatementDate": "2025-07-09",
+    "currentBalance": 3917.63,
+    "transactionCount": 45,
+    "createdAt": "2025-11-03T12:00:00",
+    "updatedAt": "2025-11-03T14:30:00"
+  }
+]
+```
+
+#### Get account by ID
+```http
+GET /api/accounts/{id}
+Authorization: Bearer <token>
+```
+
 ### Health Check
 ```http
 GET /api/health
@@ -278,7 +315,7 @@ GET /api/health
 ## Database Schema
 
 ### Users Table
-- `id`: Primary key
+- `id`: Primary key (UUID)
 - `email`: Unique email address
 - `password`: Encrypted password
 - `first_name`: User's first name
@@ -287,9 +324,23 @@ GET /api/health
 - `created_at`: Creation timestamp
 - `updated_at`: Last update timestamp
 
+### Accounts Table
+- `id`: Primary key (UUID)
+- `user_id`: Foreign key to users (UUID)
+- `account_number`: Unique bank account number
+- `client_name`: Client/company name
+- `inn`: Tax identification number (ИНН)
+- `account_name`: Account type/name
+- `currency`: Currency code (RUB, USD, EUR, etc.)
+- `last_statement_date`: Date of last imported statement
+- `current_balance`: Current account balance
+- `created_at`: Creation timestamp
+- `updated_at`: Last update timestamp
+
 ### Transactions Table
-- `id`: Primary key
-- `user_id`: Foreign key to users
+- `id`: Primary key (UUID)
+- `user_id`: Foreign key to users (UUID)
+- `account_id`: Foreign key to accounts (UUID, optional)
 - `description`: Transaction description
 - `amount`: Transaction amount
 - `currency`: Currency code (default: USD)

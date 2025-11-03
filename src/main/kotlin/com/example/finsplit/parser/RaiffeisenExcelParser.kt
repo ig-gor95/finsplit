@@ -2,9 +2,9 @@ package com.example.finsplit.parser
 
 import com.example.finsplit.domain.BankType
 import com.example.finsplit.domain.FileFormat
+import com.example.finsplit.domain.TransactionType
 import com.example.finsplit.dto.AccountMetadata
 import com.example.finsplit.dto.ParsedTransaction
-import com.example.finsplit.parser.ParseResult
 import org.apache.poi.ss.usermodel.*
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -197,6 +197,31 @@ class RaiffeisenExcelParser : TransactionFileParser {
             null
         }
     }
+    
+    /**
+     * Extracts company name and INN from combined string
+     * Example: "ООО "ОЛИМП", ИНН: 2462074498" -> ("ООО "ОЛИМП"", "2462074498")
+     */
+    private fun extractNameAndInn(rawValue: String?): Pair<String?, String?> {
+        if (rawValue == null) return Pair(null, null)
+        
+        return try {
+            // Pattern: "Company Name, ИНН: 1234567890"
+            val innRegex = """[,\s]+ИНН[:\s]+(\d+)""".toRegex(RegexOption.IGNORE_CASE)
+            val innMatch = innRegex.find(rawValue)
+            
+            if (innMatch != null) {
+                val inn = innMatch.groupValues[1]
+                val name = rawValue.substring(0, innMatch.range.first).trim()
+                Pair(name, inn)
+            } else {
+                Pair(rawValue.trim(), null)
+            }
+        } catch (e: Exception) {
+            logger.debug("Failed to extract INN from: $rawValue")
+            Pair(rawValue.trim(), null)
+        }
+    }
 
     private fun parseRow(row: Row, columnIndices: Map<String, Int>, dataFormatter: DataFormatter): ParsedTransaction? {
         try {
@@ -213,14 +238,18 @@ class RaiffeisenExcelParser : TransactionFileParser {
             }
 
             val documentNumber = documentNumberColumn?.let { getStringValue(row.getCell(it), dataFormatter) }
-            val payerAccount = findColumn(columnIndices, "Счет плательщика", "Счет Дт")
+            
+            // Recipient information
+            val recipientNameRaw = findColumn(columnIndices, "Наименование", "Name", "Получатель", "Контрагент получатель")
                 ?.let { getStringValue(row.getCell(it), dataFormatter) }
-            val recipientAccount = findColumn(columnIndices, "Счет получателя", "Счет Кт")
+            val recipientAccount = findColumn(columnIndices, "Счет", "Account", "Счет получателя", "Счет Кт")
                 ?.let { getStringValue(row.getCell(it), dataFormatter) }
-            val payerName = findColumn(columnIndices, "Плательщик", "Контрагент")
+            val recipientBank = findColumn(columnIndices, "Банк", "Bank", "Банк получателя")
                 ?.let { getStringValue(row.getCell(it), dataFormatter) }
-            val recipientName = findColumn(columnIndices, "Получатель", "Контрагент получатель")
-                ?.let { getStringValue(row.getCell(it), dataFormatter) }
+                
+            // Extract INN from recipient name if present
+            val (recipientName, recipientInn) = extractNameAndInn(recipientNameRaw)
+                
             val purpose = findColumn(columnIndices, "Назначение платежа", "Назначение", "Purpose")
                 ?.let { getStringValue(row.getCell(it), dataFormatter) }
 
@@ -229,15 +258,13 @@ class RaiffeisenExcelParser : TransactionFileParser {
                 documentDate = date,
                 amount = amount.abs(),
                 transactionDate = date.atStartOfDay(),
-                accountNumber = payerAccount ?: recipientAccount,
-                payerName = payerName,
-                payerInn = null,
-                payerAccount = payerAccount,
+                accountNumber = recipientAccount,
                 recipientName = recipientName,
-                recipientInn = null,
+                recipientInn = recipientInn,
                 recipientAccount = recipientAccount,
-                paymentPurpose = purpose,
-                currency = "RUB"
+                paymentPurpose = purpose ?: recipientBank?.let { "Payment to $recipientName via $it" },
+                currency = "RUB",
+                transactionType = TransactionType.EXPENSE  // Default for Raiffeisen, can be enhanced later
             )
         } catch (e: Exception) {
             logger.debug("Failed to parse row: ${e.message}")
@@ -274,7 +301,6 @@ class RaiffeisenExcelParser : TransactionFileParser {
                     if (DateUtil.isCellDateFormatted(cell)) {
                         dataFormatter.formatCellValue(cell)
                     } else {
-                        // Format as integer if it's a whole number, otherwise as decimal
                         val numValue = cell.numericCellValue
                         if (numValue == numValue.toLong().toDouble()) {
                             numValue.toLong().toString()
@@ -299,7 +325,7 @@ class RaiffeisenExcelParser : TransactionFileParser {
                             CellType.BOOLEAN -> cell.booleanCellValue.toString()
                             else -> dataFormatter.formatCellValue(cell)
                         }
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         dataFormatter.formatCellValue(cell)
                     }
                 }
@@ -353,7 +379,6 @@ class RaiffeisenExcelParser : TransactionFileParser {
                     }
                 }
                 CellType.STRING -> {
-                    // Try to parse string as date with multiple formats
                     val dateStr = cell.stringCellValue.trim()
                     val patterns = listOf(
                         "dd.MM.yyyy",
@@ -391,4 +416,5 @@ class RaiffeisenExcelParser : TransactionFileParser {
         }
     }
 }
+
 

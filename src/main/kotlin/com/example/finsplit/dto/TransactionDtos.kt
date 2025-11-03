@@ -1,5 +1,6 @@
 package com.example.finsplit.dto
 
+import com.example.finsplit.domain.Money
 import com.example.finsplit.domain.TransactionStatus
 import com.example.finsplit.domain.TransactionType
 import jakarta.validation.constraints.NotBlank
@@ -17,7 +18,7 @@ data class CreateTransactionRequest(
     @field:Positive(message = "Amount must be positive")
     val amount: BigDecimal,
 
-    val currency: String = "USD",
+    val currency: String = "RUB",
 
     @field:NotNull(message = "Transaction date is required")
     val transactionDate: LocalDateTime,
@@ -34,6 +35,8 @@ data class CreateTransactionRequest(
 
 data class TransactionResponse(
     val id: UUID,
+    val accountId: UUID?,
+    val fileId: UUID?,
     val description: String,
     val amount: BigDecimal,
     val currency: String,
@@ -42,12 +45,18 @@ data class TransactionResponse(
     val merchant: String?,
     val transactionType: TransactionType,
     val status: TransactionStatus,
+    val recipientName: String?,
+    val recipientInn: String?,
+    val recipientAccount: String?,
+    val paymentPurpose: String?,
+    val documentNumber: String?,
     val createdAt: LocalDateTime
 )
 
 data class TransactionStatistics(
     val totalIncome: BigDecimal,
     val totalExpenses: BigDecimal,
-    val balance: BigDecimal
+    val balance: BigDecimal,
+    val currency: String
 )
 

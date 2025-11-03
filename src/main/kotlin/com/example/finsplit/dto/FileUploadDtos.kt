@@ -1,5 +1,6 @@
 package com.example.finsplit.dto
 
+import com.example.finsplit.domain.TransactionType
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -10,14 +11,12 @@ data class ParsedTransaction(
     val amount: BigDecimal,
     val transactionDate: LocalDateTime,
     val accountNumber: String?,
-    val payerName: String?,
-    val payerInn: String?,
-    val payerAccount: String?,
     val recipientName: String?,
     val recipientInn: String?,
     val recipientAccount: String?,
     val paymentPurpose: String?,
-    val currency: String = "RUB"
+    val currency: String = "RUB",
+    val transactionType: TransactionType = TransactionType.EXPENSE
 )
 
 data class FileUploadResponse(

@@ -1,10 +1,14 @@
 package com.example.finsplit.service
 
 import com.example.finsplit.domain.*
+import com.example.finsplit.dto.AccountMetadata
+import com.example.finsplit.domain.Money
 import com.example.finsplit.dto.FileUploadResponse
 import com.example.finsplit.dto.ParsedTransaction
 import com.example.finsplit.parser.TransactionFileParser
+import com.example.finsplit.repository.AccountRepository
 import com.example.finsplit.repository.TransactionRepository
+import com.example.finsplit.repository.UploadedFileRepository
 import org.slf4j.LoggerFactory
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
@@ -17,6 +21,8 @@ import java.util.UUID
 @Service
 class FileUploadService(
     private val transactionRepository: TransactionRepository,
+    private val accountRepository: AccountRepository,
+    private val uploadedFileRepository: UploadedFileRepository,
     private val fileParsers: List<TransactionFileParser>
 ) {
 
@@ -55,9 +61,32 @@ class FileUploadService(
         }
         
         logger.info("Parsed ${parsedTransactions.size} transactions from $fileName")
-        if (accountMetadata != null) {
-            logger.info("Account info - Client: ${accountMetadata.clientName}, Account: ${accountMetadata.accountNumber}, Currency: ${accountMetadata.currency}")
+        
+        // Require account metadata
+        if (accountMetadata == null) {
+            logger.error("No account metadata found in file: $fileName")
+            throw IllegalArgumentException("File must contain account information. No account metadata found in file.")
         }
+        
+        // Create or find account
+        val account = findOrCreateAccount(user, accountMetadata)
+        logger.info("Using account: ${account.accountNumber} - ${account.clientName}")
+        
+        // Create uploaded file record
+        val uploadedFile = UploadedFile(
+            userId = user.id,
+            accountId = account.id,
+            fileName = fileName,
+            bankType = bankType,
+            fileSize = file.size,
+            totalTransactions = parsedTransactions.size,
+            importedTransactions = 0,  // Will update after processing
+            updatedTransactions = 0,
+            skippedTransactions = 0,
+            status = UploadStatus.PROCESSING
+        )
+        val savedFile = uploadedFileRepository.save(uploadedFile)
+        logger.info("Created file record: ${savedFile.id}")
 
         // Process transactions
         var importedCount = 0
@@ -80,13 +109,13 @@ class FileUploadService(
                 
                 if (existing != null) {
                     // Update existing transaction
-                    val updated = updateTransaction(existing, parsed, fileName)
+                    val updated = updateTransaction(existing, parsed, fileName, account, savedFile.id)
                     transactionRepository.save(updated)
                     updatedCount++
                     logger.debug("Updated transaction: ${parsed.documentNumber}")
                 } else {
                     // Create new transaction
-                    val newTransaction = createTransaction(user, parsed, externalId, fileName)
+                    val newTransaction = createTransaction(user, parsed, externalId, fileName, account, savedFile.id)
                     transactionRepository.save(newTransaction)
                     importedCount++
                     logger.debug("Created new transaction: ${parsed.documentNumber}")
@@ -101,6 +130,16 @@ class FileUploadService(
 
         logger.info("File upload completed for $fileName: imported=$importedCount, updated=$updatedCount, skipped=$skippedCount")
 
+        // Update file record with final statistics
+        val updatedFile = savedFile.copy(
+            importedTransactions = importedCount,
+            updatedTransactions = updatedCount,
+            skippedTransactions = skippedCount,
+            errors = if (errors.isNotEmpty()) errors.joinToString("\n") else null,
+            status = if (errors.isEmpty()) UploadStatus.COMPLETED else UploadStatus.COMPLETED
+        )
+        uploadedFileRepository.save(updatedFile)
+
         return FileUploadResponse(
             fileName = fileName,
             totalTransactions = parsedTransactions.size,
@@ -112,32 +151,70 @@ class FileUploadService(
         )
     }
 
+    private fun findOrCreateAccount(user: User, metadata: AccountMetadata): Account {
+        if (metadata.accountNumber == null) {
+            logger.error("Account metadata missing account number")
+            throw IllegalArgumentException("Account number is required in file metadata")
+        }
+
+        val existingAccount = accountRepository.findByUserIdAndAccountNumber(user.id, metadata.accountNumber)
+        
+        return if (existingAccount.isPresent) {
+            val account = existingAccount.get()
+            
+            // Update account with latest metadata
+            val updated = account.copy(
+                clientName = metadata.clientName ?: account.clientName,
+                inn = metadata.inn ?: account.inn,
+                accountName = metadata.accountName ?: account.accountName,
+                currency = metadata.currency ?: account.currency,
+                lastStatementDate = metadata.previousStatementDate ?: account.lastStatementDate,
+                currentBalance = metadata.openingBalance ?: account.currentBalance,
+                updatedAt = LocalDateTime.now()
+            )
+            accountRepository.save(updated)
+            logger.info("Updated existing account: ${metadata.accountNumber}")
+            updated
+        } else {
+            val newAccount = Account(
+                userId = user.id,
+                accountNumber = metadata.accountNumber,
+                clientName = metadata.clientName,
+                inn = metadata.inn,
+                accountName = metadata.accountName,
+                currency = metadata.currency ?: "RUB",
+                lastStatementDate = metadata.previousStatementDate,
+                currentBalance = metadata.openingBalance
+            )
+            val saved = accountRepository.save(newAccount)
+            logger.info("Created new account: ${metadata.accountNumber} for client ${metadata.clientName}")
+            saved
+        }
+    }
+
     private fun createTransaction(
         user: User,
         parsed: ParsedTransaction,
         externalId: String,
-        fileName: String
+        fileName: String,
+        account: Account,
+        fileId: UUID
     ): Transaction {
-        // Determine transaction type based on amount and accounts
-        val transactionType = determineTransactionType(parsed, user)
-        
         return Transaction(
-            user = user,
+            userId = user.id,
+            accountId = account.id,
+            fileId = fileId,
             description = parsed.paymentPurpose ?: "Bank transaction ${parsed.documentNumber ?: ""}",
-            amount = parsed.amount.abs(),
-            currency = parsed.currency,
+            amount = Money.of(parsed.amount, parsed.currency),
             transactionDate = parsed.transactionDate,
             category = null, // Can be categorized later
-            merchant = parsed.recipientName ?: parsed.payerName,
-            transactionType = transactionType,
+            merchant = parsed.recipientName,
+            transactionType = parsed.transactionType,
             status = TransactionStatus.COMPLETED,
             externalId = externalId,
             documentNumber = parsed.documentNumber,
             documentDate = parsed.documentDate,
             accountNumber = parsed.accountNumber,
-            payerName = parsed.payerName,
-            payerInn = parsed.payerInn,
-            payerAccount = parsed.payerAccount,
             recipientName = parsed.recipientName,
             recipientInn = parsed.recipientInn,
             recipientAccount = parsed.recipientAccount,
@@ -150,15 +227,16 @@ class FileUploadService(
     private fun updateTransaction(
         existing: Transaction,
         parsed: ParsedTransaction,
-        fileName: String
+        fileName: String,
+        account: Account,
+        fileId: UUID
     ): Transaction {
         return existing.copy(
+            accountId = account.id,
+            fileId = fileId,
             description = parsed.paymentPurpose ?: existing.description,
-            amount = parsed.amount.abs(),
-            merchant = parsed.recipientName ?: parsed.payerName ?: existing.merchant,
-            payerName = parsed.payerName,
-            payerInn = parsed.payerInn,
-            payerAccount = parsed.payerAccount,
+            amount = Money.of(parsed.amount, parsed.currency),
+            merchant = parsed.recipientName ?: existing.merchant,
             recipientName = parsed.recipientName,
             recipientInn = parsed.recipientInn,
             recipientAccount = parsed.recipientAccount,
@@ -169,26 +247,10 @@ class FileUploadService(
         )
     }
 
-    private fun determineTransactionType(parsed: ParsedTransaction, user: User): TransactionType {
-        // Simple logic: if payer account matches user's account, it's an expense
-        // Otherwise, it's income
-        // This can be enhanced based on business logic
-        return if (parsed.payerAccount != null && parsed.recipientAccount != null) {
-            if (parsed.payerAccount == parsed.accountNumber) {
-                TransactionType.EXPENSE
-            } else {
-                TransactionType.INCOME
-            }
-        } else {
-            // Default to expense
-            TransactionType.EXPENSE
-        }
-    }
-
     private fun generateExternalId(parsed: ParsedTransaction, userId: UUID): String {
         // Generate a unique ID based on transaction details
         val data = "${userId}_${parsed.documentNumber}_${parsed.documentDate}_" +
-                   "${parsed.amount}_${parsed.payerAccount}_${parsed.recipientAccount}"
+                   "${parsed.amount}_${parsed.recipientAccount}"
         
         return MessageDigest.getInstance("SHA-256")
             .digest(data.toByteArray())

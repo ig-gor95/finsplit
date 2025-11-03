@@ -1,5 +1,6 @@
 package com.example.finsplit.service
 
+import com.example.finsplit.domain.Money
 import com.example.finsplit.domain.Transaction
 import com.example.finsplit.domain.TransactionType
 import com.example.finsplit.domain.User
@@ -29,10 +30,9 @@ class TransactionService(
         val user = getCurrentUser()
 
         val transaction = Transaction(
-            user = user,
+            userId = user.id,
             description = request.description,
-            amount = request.amount,
-            currency = request.currency,
+            amount = Money.of(request.amount, request.currency),
             transactionDate = request.transactionDate,
             category = request.category,
             merchant = request.merchant,
@@ -81,7 +81,8 @@ class TransactionService(
         return TransactionStatistics(
             totalIncome = totalIncome,
             totalExpenses = totalExpenses,
-            balance = totalIncome.subtract(totalExpenses)
+            balance = totalIncome.subtract(totalExpenses),
+            currency = "RUB" // TODO: Support multiple currencies
         )
     }
 
@@ -93,7 +94,7 @@ class TransactionService(
                 IllegalArgumentException("Transaction not found") 
             }
 
-        if (transaction.user.id != user.id) {
+        if (transaction.userId != user.id) {
             logger.warn("Unauthorized access attempt to transaction $id by user ${user.id}")
             throw IllegalAccessException("Unauthorized access to transaction")
         }
@@ -109,14 +110,21 @@ class TransactionService(
     private fun toTransactionResponse(transaction: Transaction): TransactionResponse {
         return TransactionResponse(
             id = transaction.id,
+            accountId = transaction.accountId,
+            fileId = transaction.fileId,
             description = transaction.description,
-            amount = transaction.amount,
-            currency = transaction.currency,
+            amount = transaction.amount.amount,
+            currency = transaction.amount.currency,
             transactionDate = transaction.transactionDate,
             category = transaction.category,
             merchant = transaction.merchant,
             transactionType = transaction.transactionType,
             status = transaction.status,
+            recipientName = transaction.recipientName,
+            recipientInn = transaction.recipientInn,
+            recipientAccount = transaction.recipientAccount,
+            paymentPurpose = transaction.paymentPurpose,
+            documentNumber = transaction.documentNumber,
             createdAt = transaction.createdAt
         )
     }

@@ -9,6 +9,12 @@
     <include file="db/changelog/changes/002-create-transactions-table.sql"/>
     <include file="db/changelog/changes/003-add-transaction-external-fields.sql"/>
     <include file="db/changelog/changes/004-convert-ids-to-uuid.sql"/>
+    <include file="db/changelog/changes/005-create-accounts-table.sql"/>
+    <include file="db/changelog/changes/006-add-account-to-transactions.sql"/>
+    <include file="db/changelog/changes/007-convert-amount-to-money.sql"/>
+    <include file="db/changelog/changes/008-revert-to-bigdecimal.sql"/>
+    <include file="db/changelog/changes/009-create-uploaded-files-table.sql"/>
+    <include file="db/changelog/changes/010-add-file-id-to-transactions.sql"/>
 
 </databaseChangeLog>
 
