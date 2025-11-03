@@ -26,6 +26,7 @@ data class FileUploadResponse(
     val importedTransactions: Int,
     val updatedTransactions: Int,
     val skippedTransactions: Int,
-    val errors: List<String> = emptyList()
+    val errors: List<String> = emptyList(),
+    val accountMetadata: AccountMetadata? = null
 )
 

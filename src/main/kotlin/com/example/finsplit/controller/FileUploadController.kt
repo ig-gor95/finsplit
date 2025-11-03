@@ -1,5 +1,6 @@
 package com.example.finsplit.controller
 
+import com.example.finsplit.domain.BankType
 import com.example.finsplit.dto.FileUploadResponse
 import com.example.finsplit.service.FileUploadService
 import io.swagger.v3.oas.annotations.Operation
@@ -16,7 +17,7 @@ import org.springframework.web.multipart.MultipartFile
 
 @RestController
 @RequestMapping("/api/transactions")
-@Tag(name = "File Upload", description = "Upload and parse banking transaction files (TXT, XLSX)")
+@Tag(name = "File Upload", description = "Upload and parse banking transaction files from different banks")
 @SecurityRequirement(name = "Bearer Authentication")
 class FileUploadController(
     private val fileUploadService: FileUploadService
@@ -26,28 +27,37 @@ class FileUploadController(
     @Operation(
         summary = "Upload bank statement file",
         description = """
-            Upload and parse banking transaction files in supported formats:
-            - 1C:Enterprise format (.txt files with windows-1251 encoding)
-            - Excel format (.xlsx or .xls files)
+            Upload and parse banking transaction files from various banks.
+            
+            Supported banks and formats:
+            - RAIFFEISEN: Excel format (.xlsx or .xls files)
+            - ONE_C_FORMAT: 1C:Enterprise format (.txt files with windows-1251 encoding)
             
             The system will:
-            - Parse all transactions from the file
+            - Parse all transactions from the file using bank-specific parser
             - Create new transactions that don't exist
             - Update existing transactions based on external ID (generated from transaction details)
             - Skip transactions that fail validation
             
-            Supported file formats:
-            - .txt (1C:Enterprise banking format)
-            - .xlsx/.xls (Excel format with banking transactions)
+            Required parameters:
+            - file: The bank statement file
+            - bankType: The bank that generated the file (RAIFFEISEN, ONE_C_FORMAT)
         """
     )
     fun uploadFile(
         @Parameter(
-            description = "Bank statement file (.txt or .xlsx)",
+            description = "Bank statement file (.txt, .xlsx, or .xls)",
             required = true,
             content = [Content(mediaType = MediaType.MULTIPART_FORM_DATA_VALUE)]
         )
-        @RequestParam("file") file: MultipartFile
+        @RequestParam("file") file: MultipartFile,
+        
+        @Parameter(
+            description = "Bank type that generated this file",
+            required = true,
+            schema = Schema(implementation = BankType::class)
+        )
+        @RequestParam("bankType") bankType: BankType
     ): ResponseEntity<FileUploadResponse> {
         
         if (file.isEmpty) {
@@ -64,8 +74,17 @@ class FileUploadController(
                 )
         }
 
-        val response = fileUploadService.uploadAndProcessFile(file)
+        val response = fileUploadService.uploadAndProcessFile(file, bankType)
         return ResponseEntity.status(HttpStatus.OK).body(response)
+    }
+    
+    @GetMapping("/supported-banks")
+    @Operation(
+        summary = "Get list of supported banks",
+        description = "Returns a list of all supported bank types and their file formats"
+    )
+    fun getSupportedBanks(): ResponseEntity<List<BankType>> {
+        return ResponseEntity.ok(BankType.values().filter { it != BankType.UNKNOWN }.toList())
     }
 }
 

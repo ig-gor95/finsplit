@@ -1,5 +1,7 @@
 package com.example.finsplit.parser
 
+import com.example.finsplit.domain.BankType
+import com.example.finsplit.domain.FileFormat
 import com.example.finsplit.dto.ParsedTransaction
 import org.springframework.stereotype.Component
 import java.io.BufferedReader
@@ -21,11 +23,11 @@ class OneCFormatParser : TransactionFileParser {
         private const val TRANSACTION_TYPE = "ПлатежноеПоручение"
     }
 
-    override fun canParse(fileName: String): Boolean {
-        return fileName.endsWith(".txt", ignoreCase = true)
-    }
+    override fun getSupportedBank(): BankType = BankType.ONE_C_FORMAT
 
-    override fun parse(inputStream: InputStream, fileName: String): List<ParsedTransaction> {
+    override fun getSupportedFormats(): List<FileFormat> = listOf(FileFormat.TXT)
+
+    override fun parse(inputStream: InputStream, fileName: String): ParseResult {
         val transactions = mutableListOf<ParsedTransaction>()
         val reader = BufferedReader(InputStreamReader(inputStream, Charset.forName("windows-1251")))
         
@@ -58,7 +60,7 @@ class OneCFormatParser : TransactionFileParser {
             }
         }
 
-        return transactions
+        return ParseResult(transactions, null)
     }
 
     private fun parseTransaction(data: Map<String, String>): ParsedTransaction? {

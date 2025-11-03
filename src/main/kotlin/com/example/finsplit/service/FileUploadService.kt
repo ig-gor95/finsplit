@@ -1,9 +1,6 @@
 package com.example.finsplit.service
 
-import com.example.finsplit.domain.Transaction
-import com.example.finsplit.domain.TransactionStatus
-import com.example.finsplit.domain.TransactionType
-import com.example.finsplit.domain.User
+import com.example.finsplit.domain.*
 import com.example.finsplit.dto.FileUploadResponse
 import com.example.finsplit.dto.ParsedTransaction
 import com.example.finsplit.parser.TransactionFileParser
@@ -26,28 +23,31 @@ class FileUploadService(
     private val logger = LoggerFactory.getLogger(FileUploadService::class.java)
 
     @Transactional
-    fun uploadAndProcessFile(file: MultipartFile): FileUploadResponse {
+    fun uploadAndProcessFile(file: MultipartFile, bankType: BankType): FileUploadResponse {
         val fileName = file.originalFilename ?: throw IllegalArgumentException("File name is required")
         val user = getCurrentUser()
         
-        logger.info("Starting file upload for user ${user.id}: $fileName")
+        logger.info("Starting file upload for user ${user.id}: $fileName, bank: $bankType")
         
         // Find appropriate parser
-        val parser = fileParsers.firstOrNull { it.canParse(fileName) }
+        val parser = fileParsers.firstOrNull { it.canParse(bankType, fileName) }
             ?: run {
-                logger.error("Unsupported file format: $fileName")
-                throw IllegalArgumentException("Unsupported file format: $fileName")
+                logger.error("No parser found for bank $bankType and file format: $fileName")
+                throw IllegalArgumentException("No parser available for bank $bankType with file format: $fileName")
             }
 
         val errors = mutableListOf<String>()
         
         // Parse file
-        val parsedTransactions = try {
+        val parseResult = try {
             file.inputStream.use { parser.parse(it, fileName) }
         } catch (e: Exception) {
             logger.error("Failed to parse file $fileName", e)
             throw IllegalArgumentException("Failed to parse file: ${e.message}")
         }
+
+        val parsedTransactions = parseResult.transactions
+        val accountMetadata = parseResult.accountMetadata
 
         if (parsedTransactions.isEmpty()) {
             logger.warn("No transactions found in file: $fileName")
@@ -55,6 +55,9 @@ class FileUploadService(
         }
         
         logger.info("Parsed ${parsedTransactions.size} transactions from $fileName")
+        if (accountMetadata != null) {
+            logger.info("Account info - Client: ${accountMetadata.clientName}, Account: ${accountMetadata.accountNumber}, Currency: ${accountMetadata.currency}")
+        }
 
         // Process transactions
         var importedCount = 0
@@ -63,7 +66,7 @@ class FileUploadService(
 
         // Generate external IDs for all parsed transactions
         val parsedWithIds = parsedTransactions.map { parsed ->
-            parsed to generateExternalId(parsed, user.id!!)
+            parsed to generateExternalId(parsed, user.id)
         }
 
         // Check which transactions already exist
@@ -104,7 +107,8 @@ class FileUploadService(
             importedTransactions = importedCount,
             updatedTransactions = updatedCount,
             skippedTransactions = skippedCount,
-            errors = errors
+            errors = errors,
+            accountMetadata = accountMetadata
         )
     }
 

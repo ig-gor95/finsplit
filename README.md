@@ -8,11 +8,12 @@ A Spring Boot application for parsing and providing analytics of banking transac
 - **User Registration & Login**: Secure user management with password encryption
 - **Transaction Management**: Create and manage banking transactions
 - **File Upload & Parsing**: 
-  - Upload bank statement files (.txt, .xlsx)
-  - Parse 1C:Enterprise format (windows-1251 encoding)
-  - Parse Excel banking statements
+  - Upload bank statement files from multiple banks
+  - Bank-specific parsers (Raiffeisen, 1C:Enterprise)
+  - Support for Excel (.xlsx, .xls) and text (.txt) formats
   - Automatic transaction deduplication
   - Update existing transactions from new files
+  - Easy to add new bank parsers (see [ADDING_NEW_BANK_PARSER.md](ADDING_NEW_BANK_PARSER.md))
 - **Transaction Analytics**: 
   - Filter transactions by date range
   - Filter transactions by category
@@ -210,17 +211,29 @@ POST /api/transactions/upload
 Authorization: Bearer <token>
 Content-Type: multipart/form-data
 
-file: [your .txt or .xlsx file]
+file: [your bank statement file]
+bankType: RAIFFEISEN (or ONE_C_FORMAT)
 ```
 
-Supported file formats:
-- **1C:Enterprise format** (.txt files with windows-1251 encoding)
-- **Excel format** (.xlsx or .xls files)
+**Supported banks and formats:**
+
+| Bank Type | File Formats | Description |
+|-----------|-------------|-------------|
+| `RAIFFEISEN` | .xlsx, .xls | Raiffeisen Bank Excel statements |
+| `ONE_C_FORMAT` | .txt | 1C:Enterprise format (windows-1251) |
+
+**Example with cURL:**
+```bash
+curl -X POST http://localhost:8080/api/transactions/upload \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@statement.xlsx" \
+  -F "bankType=RAIFFEISEN"
+```
 
 Response:
 ```json
 {
-  "fileName": "kl_to_1c_03-11-2025_12-01-35.txt",
+  "fileName": "statement.xlsx",
   "totalTransactions": 50,
   "importedTransactions": 45,
   "updatedTransactions": 5,
@@ -230,10 +243,19 @@ Response:
 ```
 
 The system will:
+- Use bank-specific parser for the file
 - Parse all transactions from the file
 - Create new transactions that don't exist
 - Update existing transactions (matched by external ID)
 - Skip invalid transactions and report errors
+
+#### Get supported banks
+```http
+GET /api/transactions/supported-banks
+Authorization: Bearer <token>
+```
+
+Returns list of all supported bank types.
 
 ### Health Check
 ```http
