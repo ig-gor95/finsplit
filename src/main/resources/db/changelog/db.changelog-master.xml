@@ -7,6 +7,8 @@
 
     <include file="db/changelog/changes/001-create-users-table.sql"/>
     <include file="db/changelog/changes/002-create-transactions-table.sql"/>
+    <include file="db/changelog/changes/003-add-transaction-external-fields.sql"/>
+    <include file="db/changelog/changes/004-convert-ids-to-uuid.sql"/>
 
 </databaseChangeLog>
 

@@ -10,6 +10,8 @@ import org.springframework.security.authentication.AuthenticationManager
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import java.util.UUID
+import kotlin.uuid.Uuid
 
 @Service
 class AuthService(
@@ -25,6 +27,7 @@ class AuthService(
         }
 
         val user = User(
+            id = UUID.randomUUID(),
             email = request.email,
             password = passwordEncoder.encode(request.password),
             firstName = request.firstName,

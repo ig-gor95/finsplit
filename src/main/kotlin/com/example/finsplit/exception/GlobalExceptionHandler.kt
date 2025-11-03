@@ -1,5 +1,6 @@
 package com.example.finsplit.exception
 
+import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.authentication.BadCredentialsException
@@ -13,8 +14,14 @@ import java.time.LocalDateTime
 @RestControllerAdvice
 class GlobalExceptionHandler {
 
+    private val logger = LoggerFactory.getLogger(GlobalExceptionHandler::class.java)
+
     @ExceptionHandler(MethodArgumentNotValidException::class)
     fun handleValidationExceptions(ex: MethodArgumentNotValidException): ResponseEntity<ErrorResponse> {
+        logger.warn("Validation error: {}", ex.bindingResult.allErrors.joinToString(", ") { 
+            "${(it as FieldError).field}: ${it.defaultMessage}" 
+        })
+        
         val errors = ex.bindingResult.allErrors.associate { error ->
             val fieldName = (error as FieldError).field
             val errorMessage = error.defaultMessage ?: "Invalid value"
@@ -34,6 +41,8 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException::class)
     fun handleIllegalArgumentException(ex: IllegalArgumentException): ResponseEntity<ErrorResponse> {
+        logger.warn("Illegal argument exception: {}", ex.message, ex)
+        
         val response = ErrorResponse(
             timestamp = LocalDateTime.now(),
             status = HttpStatus.BAD_REQUEST.value(),
@@ -46,6 +55,8 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException::class, UsernameNotFoundException::class)
     fun handleAuthenticationException(ex: Exception): ResponseEntity<ErrorResponse> {
+        logger.warn("Authentication failed: {}", ex.message)
+        
         val response = ErrorResponse(
             timestamp = LocalDateTime.now(),
             status = HttpStatus.UNAUTHORIZED.value(),
@@ -58,6 +69,8 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalAccessException::class)
     fun handleAccessDeniedException(ex: IllegalAccessException): ResponseEntity<ErrorResponse> {
+        logger.warn("Access denied: {}", ex.message, ex)
+        
         val response = ErrorResponse(
             timestamp = LocalDateTime.now(),
             status = HttpStatus.FORBIDDEN.value(),
@@ -70,6 +83,8 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception::class)
     fun handleGenericException(ex: Exception): ResponseEntity<ErrorResponse> {
+        logger.error("Unexpected error occurred", ex)
+        
         val response = ErrorResponse(
             timestamp = LocalDateTime.now(),
             status = HttpStatus.INTERNAL_SERVER_ERROR.value(),

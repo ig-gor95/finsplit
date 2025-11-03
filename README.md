@@ -7,6 +7,12 @@ A Spring Boot application for parsing and providing analytics of banking transac
 - **User Authentication**: JWT-based authentication system
 - **User Registration & Login**: Secure user management with password encryption
 - **Transaction Management**: Create and manage banking transactions
+- **File Upload & Parsing**: 
+  - Upload bank statement files (.txt, .xlsx)
+  - Parse 1C:Enterprise format (windows-1251 encoding)
+  - Parse Excel banking statements
+  - Automatic transaction deduplication
+  - Update existing transactions from new files
 - **Transaction Analytics**: 
   - Filter transactions by date range
   - Filter transactions by category
@@ -23,6 +29,7 @@ A Spring Boot application for parsing and providing analytics of banking transac
 - **Security**: Spring Security + JWT
 - **ORM**: Spring Data JPA / Hibernate
 - **Migration**: Liquibase
+- **File Parsing**: Apache POI 5.2.5 for Excel files
 - **API Documentation**: SpringDoc OpenAPI 2.3.0
 - **Build Tool**: Maven
 
@@ -197,6 +204,37 @@ Response:
 }
 ```
 
+#### Upload bank statement file
+```http
+POST /api/transactions/upload
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+file: [your .txt or .xlsx file]
+```
+
+Supported file formats:
+- **1C:Enterprise format** (.txt files with windows-1251 encoding)
+- **Excel format** (.xlsx or .xls files)
+
+Response:
+```json
+{
+  "fileName": "kl_to_1c_03-11-2025_12-01-35.txt",
+  "totalTransactions": 50,
+  "importedTransactions": 45,
+  "updatedTransactions": 5,
+  "skippedTransactions": 0,
+  "errors": []
+}
+```
+
+The system will:
+- Parse all transactions from the file
+- Create new transactions that don't exist
+- Update existing transactions (matched by external ID)
+- Skip invalid transactions and report errors
+
 ### Health Check
 ```http
 GET /api/health
@@ -238,6 +276,19 @@ GET /api/health
 - `merchant`: Merchant name
 - `transaction_type`: Type of transaction (INCOME/EXPENSE/TRANSFER)
 - `status`: Transaction status
+- `external_id`: Unique identifier from bank file (for deduplication)
+- `document_number`: Document/payment number
+- `document_date`: Document date
+- `account_number`: Bank account number
+- `payer_name`: Name of the payer
+- `payer_inn`: Payer's tax ID
+- `payer_account`: Payer's bank account
+- `recipient_name`: Name of the recipient
+- `recipient_inn`: Recipient's tax ID
+- `recipient_account`: Recipient's bank account
+- `payment_purpose`: Payment description/purpose
+- `source_file_name`: Original uploaded file name
+- `imported_at`: When the transaction was imported
 - `created_at`: Creation timestamp
 - `updated_at`: Last update timestamp
 

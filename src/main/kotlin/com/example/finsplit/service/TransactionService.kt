@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import java.math.BigDecimal
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Service
 class TransactionService(
@@ -42,7 +43,7 @@ class TransactionService(
 
     fun getTransactions(pageable: Pageable): Page<TransactionResponse> {
         val user = getCurrentUser()
-        return transactionRepository.findByUserId(user.id!!, pageable)
+        return transactionRepository.findByUserId(user.id, pageable)
             .map { toTransactionResponse(it) }
     }
 
@@ -53,7 +54,7 @@ class TransactionService(
     ): Page<TransactionResponse> {
         val user = getCurrentUser()
         return transactionRepository.findByUserIdAndTransactionDateBetween(
-            user.id!!,
+            user.id,
             startDate,
             endDate,
             pageable
@@ -62,16 +63,16 @@ class TransactionService(
 
     fun getTransactionsByCategory(category: String, pageable: Pageable): Page<TransactionResponse> {
         val user = getCurrentUser()
-        return transactionRepository.findByUserIdAndCategory(user.id!!, category, pageable)
+        return transactionRepository.findByUserIdAndCategory(user.id, category, pageable)
             .map { toTransactionResponse(it) }
     }
 
     fun getStatistics(): TransactionStatistics {
         val user = getCurrentUser()
         
-        val totalIncome = transactionRepository.getTotalAmountByUserAndType(user.id!!, TransactionType.INCOME) 
+        val totalIncome = transactionRepository.getTotalAmountByUserAndType(user.id, TransactionType.INCOME) 
             ?: BigDecimal.ZERO
-        val totalExpenses = transactionRepository.getTotalAmountByUserAndType(user.id!!, TransactionType.EXPENSE) 
+        val totalExpenses = transactionRepository.getTotalAmountByUserAndType(user.id, TransactionType.EXPENSE) 
             ?: BigDecimal.ZERO
 
         return TransactionStatistics(
@@ -81,7 +82,7 @@ class TransactionService(
         )
     }
 
-    fun getTransactionById(id: Long): TransactionResponse {
+    fun getTransactionById(id: UUID): TransactionResponse {
         val user = getCurrentUser()
         val transaction = transactionRepository.findById(id)
             .orElseThrow { IllegalArgumentException("Transaction not found") }
@@ -100,7 +101,7 @@ class TransactionService(
 
     private fun toTransactionResponse(transaction: Transaction): TransactionResponse {
         return TransactionResponse(
-            id = transaction.id!!,
+            id = transaction.id,
             description = transaction.description,
             amount = transaction.amount,
             currency = transaction.currency,

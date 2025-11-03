@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import java.time.LocalDateTime
+import java.util.UUID
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -54,7 +55,7 @@ class TransactionController(
         summary = "Get transaction by ID",
         description = "Returns a specific transaction by its ID"
     )
-    fun getTransaction(@PathVariable id: Long): ResponseEntity<TransactionResponse> {
+    fun getTransaction(@PathVariable id: UUID): ResponseEntity<TransactionResponse> {
         val transaction = transactionService.getTransactionById(id)
         return ResponseEntity.ok(transaction)
     }

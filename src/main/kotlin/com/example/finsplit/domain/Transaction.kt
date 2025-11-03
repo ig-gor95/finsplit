@@ -2,14 +2,16 @@ package com.example.finsplit.domain
 
 import jakarta.persistence.*
 import java.math.BigDecimal
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Entity
 @Table(name = "transactions")
 data class Transaction(
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long? = null,
+    @Column(columnDefinition = "UUID")
+    val id: UUID = UUID.randomUUID(),
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
@@ -40,6 +42,46 @@ data class Transaction(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     val status: TransactionStatus = TransactionStatus.PENDING,
+
+    // Fields for imported bank transactions
+    @Column(unique = true)
+    val externalId: String? = null,
+
+    @Column
+    val documentNumber: String? = null,
+
+    @Column
+    val documentDate: LocalDate? = null,
+
+    @Column
+    val accountNumber: String? = null,
+
+    @Column
+    val payerName: String? = null,
+
+    @Column
+    val payerInn: String? = null,
+
+    @Column
+    val payerAccount: String? = null,
+
+    @Column
+    val recipientName: String? = null,
+
+    @Column
+    val recipientInn: String? = null,
+
+    @Column
+    val recipientAccount: String? = null,
+
+    @Column(columnDefinition = "TEXT")
+    val paymentPurpose: String? = null,
+
+    @Column
+    val sourceFileName: String? = null,
+
+    @Column
+    val importedAt: LocalDateTime? = null,
 
     @Column(nullable = false, updatable = false)
     val createdAt: LocalDateTime = LocalDateTime.now(),

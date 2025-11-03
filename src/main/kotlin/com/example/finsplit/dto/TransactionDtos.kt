@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Positive
 import java.math.BigDecimal
 import java.time.LocalDateTime
+import java.util.UUID
 
 data class CreateTransactionRequest(
     @field:NotBlank(message = "Description is required")
@@ -32,7 +33,7 @@ data class CreateTransactionRequest(
 )
 
 data class TransactionResponse(
-    val id: Long,
+    val id: UUID,
     val description: String,
     val amount: BigDecimal,
     val currency: String,

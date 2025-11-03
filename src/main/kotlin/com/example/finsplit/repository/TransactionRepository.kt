@@ -9,24 +9,29 @@ import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 import java.math.BigDecimal
 import java.time.LocalDateTime
+import java.util.UUID
 
 @Repository
-interface TransactionRepository : JpaRepository<Transaction, Long> {
-    fun findByUserId(userId: Long, pageable: Pageable): Page<Transaction>
+interface TransactionRepository : JpaRepository<Transaction, UUID> {
+    fun findByUserId(userId: UUID, pageable: Pageable): Page<Transaction>
     
     fun findByUserIdAndTransactionDateBetween(
-        userId: Long,
+        userId: UUID,
         startDate: LocalDateTime,
         endDate: LocalDateTime,
         pageable: Pageable
     ): Page<Transaction>
     
-    fun findByUserIdAndCategory(userId: Long, category: String, pageable: Pageable): Page<Transaction>
+    fun findByUserIdAndCategory(userId: UUID, category: String, pageable: Pageable): Page<Transaction>
     
     @Query("SELECT SUM(t.amount) FROM Transaction t WHERE t.user.id = :userId AND t.transactionType = :type")
-    fun getTotalAmountByUserAndType(userId: Long, type: TransactionType): BigDecimal?
+    fun getTotalAmountByUserAndType(userId: UUID, type: TransactionType): BigDecimal?
     
     @Query("SELECT t FROM Transaction t WHERE t.user.id = :userId AND t.transactionDate >= :startDate")
-    fun findRecentTransactions(userId: Long, startDate: LocalDateTime): List<Transaction>
+    fun findRecentTransactions(userId: UUID, startDate: LocalDateTime): List<Transaction>
+    
+    fun findByExternalId(externalId: String): Transaction?
+    
+    fun findByUserIdAndExternalIdIn(userId: UUID, externalIds: List<String>): List<Transaction>
 }
 
