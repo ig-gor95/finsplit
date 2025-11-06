@@ -37,5 +37,8 @@ interface TransactionRepository : JpaRepository<Transaction, UUID> {
     fun findByFileId(fileId: UUID, pageable: Pageable): Page<Transaction>
     
     fun countByFileId(fileId: UUID): Long
+    
+    @Query("SELECT MAX(t.transactionDate) FROM Transaction t WHERE t.accountId = :accountId")
+    fun findLatestTransactionDateByAccountId(accountId: UUID): LocalDateTime?
 }
 

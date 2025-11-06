@@ -417,9 +417,6 @@ GET /api/health
 - `document_number`: Document/payment number
 - `document_date`: Document date
 - `account_number`: Bank account number
-- `payer_name`: Name of the payer
-- `payer_inn`: Payer's tax ID
-- `payer_account`: Payer's bank account
 - `recipient_name`: Name of the recipient
 - `recipient_inn`: Recipient's tax ID
 - `recipient_account`: Recipient's bank account

@@ -136,13 +136,18 @@ class FileUploadService(
 
         // Save closing balance if present
         if (accountMetadata.closingBalance != null && accountMetadata.statementDate != null) {
-            saveAccountBalance(
+            // Find the latest transaction date in the uploaded file
+            val latestUploadedTransactionDate = parsedTransactions
+                .maxOfOrNull { it.transactionDate }
+            
+            saveAccountBalanceIfLatest(
                 user = user,
                 account = account,
                 balanceDate = accountMetadata.statementDate,
                 balance = accountMetadata.closingBalance,
                 currency = accountMetadata.currency ?: account.currency,
-                fileId = savedFile.id
+                fileId = savedFile.id,
+                latestTransactionDateInFile = latestUploadedTransactionDate
             )
         } else {
             logger.warn("No closing balance or statement date found in file metadata")
@@ -276,14 +281,30 @@ class FileUploadService(
             .substring(0, 64)
     }
 
-    private fun saveAccountBalance(
+    private fun saveAccountBalanceIfLatest(
         user: User,
         account: Account,
         balanceDate: LocalDate,
         balance: BigDecimal,
         currency: String,
-        fileId: UUID
+        fileId: UUID,
+        latestTransactionDateInFile: LocalDateTime?
     ) {
+        // Check if this file contains the latest transactions
+        val latestTransactionInDb = transactionRepository.findLatestTransactionDateByAccountId(account.id)
+        
+        if (latestTransactionInDb != null && latestTransactionDateInFile != null) {
+            // If there are existing transactions, only update balance if this file has newer or equal transactions
+            if (latestTransactionDateInFile < latestTransactionInDb) {
+                logger.warn(
+                    "Skipping balance update for account ${account.accountNumber}: " +
+                    "file contains older transactions (latest in file: $latestTransactionDateInFile, " +
+                    "latest in DB: $latestTransactionInDb)"
+                )
+                return
+            }
+        }
+        
         val existingBalance = accountBalanceRepository.findByAccountIdAndBalanceDate(account.id, balanceDate)
         
         if (existingBalance.isPresent) {
