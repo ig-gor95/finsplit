@@ -6,6 +6,7 @@ import com.example.finsplit.domain.Money
 import com.example.finsplit.dto.FileUploadResponse
 import com.example.finsplit.dto.ParsedTransaction
 import com.example.finsplit.parser.TransactionFileParser
+import com.example.finsplit.repository.AccountBalanceRepository
 import com.example.finsplit.repository.AccountRepository
 import com.example.finsplit.repository.TransactionRepository
 import com.example.finsplit.repository.UploadedFileRepository
@@ -14,7 +15,9 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.multipart.MultipartFile
+import java.math.BigDecimal
 import java.security.MessageDigest
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -23,6 +26,7 @@ class FileUploadService(
     private val transactionRepository: TransactionRepository,
     private val accountRepository: AccountRepository,
     private val uploadedFileRepository: UploadedFileRepository,
+    private val accountBalanceRepository: AccountBalanceRepository,
     private val fileParsers: List<TransactionFileParser>
 ) {
 
@@ -129,6 +133,20 @@ class FileUploadService(
         }
 
         logger.info("File upload completed for $fileName: imported=$importedCount, updated=$updatedCount, skipped=$skippedCount")
+
+        // Save closing balance if present
+        if (accountMetadata.closingBalance != null && accountMetadata.statementDate != null) {
+            saveAccountBalance(
+                user = user,
+                account = account,
+                balanceDate = accountMetadata.statementDate,
+                balance = accountMetadata.closingBalance,
+                currency = accountMetadata.currency ?: account.currency,
+                fileId = savedFile.id
+            )
+        } else {
+            logger.warn("No closing balance or statement date found in file metadata")
+        }
 
         // Update file record with final statistics
         val updatedFile = savedFile.copy(
@@ -256,6 +274,39 @@ class FileUploadService(
             .digest(data.toByteArray())
             .joinToString("") { "%02x".format(it) }
             .substring(0, 64)
+    }
+
+    private fun saveAccountBalance(
+        user: User,
+        account: Account,
+        balanceDate: LocalDate,
+        balance: BigDecimal,
+        currency: String,
+        fileId: UUID
+    ) {
+        val existingBalance = accountBalanceRepository.findByAccountIdAndBalanceDate(account.id, balanceDate)
+        
+        if (existingBalance.isPresent) {
+            // Update existing balance
+            val updated = existingBalance.get().copy(
+                balance = Money.of(balance, currency),
+                fileId = fileId,
+                updatedAt = LocalDateTime.now()
+            )
+            accountBalanceRepository.save(updated)
+            logger.info("Updated balance for account ${account.accountNumber} on $balanceDate: $balance $currency")
+        } else {
+            // Create new balance record
+            val newBalance = AccountBalance(
+                userId = user.id,
+                accountId = account.id,
+                balanceDate = balanceDate,
+                balance = Money.of(balance, currency),
+                fileId = fileId
+            )
+            accountBalanceRepository.save(newBalance)
+            logger.info("Created balance record for account ${account.accountNumber} on $balanceDate: $balance $currency")
+        }
     }
 
     private fun getCurrentUser(): User {

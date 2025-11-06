@@ -15,6 +15,7 @@
     <include file="db/changelog/changes/008-revert-to-bigdecimal.sql"/>
     <include file="db/changelog/changes/009-create-uploaded-files-table.sql"/>
     <include file="db/changelog/changes/010-add-file-id-to-transactions.sql"/>
+    <include file="db/changelog/changes/011-create-account-balances-table.sql"/>
 
 </databaseChangeLog>
 

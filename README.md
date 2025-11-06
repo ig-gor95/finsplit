@@ -219,8 +219,8 @@ bankType: RAIFFEISEN (or ONE_C_FORMAT)
 
 | Bank Type | File Formats | Description |
 |-----------|-------------|-------------|
-| `RAIFFEISEN` | .xlsx, .xls | Raiffeisen Bank Excel statements |
-| `ONE_C_FORMAT` | .txt | 1C:Enterprise format (windows-1251) |
+| `RAIFFEISEN` | .xlsx, .xls, .txt | Raiffeisen Bank statements (Excel or 1C format) |
+| `ONE_C_FORMAT` | .txt | Generic 1C:Enterprise format (windows-1251) |
 
 **Example with cURL:**
 ```bash
@@ -291,6 +291,70 @@ Response:
 #### Get account by ID
 ```http
 GET /api/accounts/{id}
+Authorization: Bearer <token>
+```
+
+### Account Balances
+
+All balance endpoints require authentication.
+
+#### Get all balance records
+```http
+GET /api/balances
+Authorization: Bearer <token>
+```
+
+Returns paginated balance history for all accounts.
+
+#### Get balance history for specific account
+```http
+GET /api/balances/account/{accountId}
+Authorization: Bearer <token>
+```
+
+Response:
+```json
+{
+  "content": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "accountId": "660e8400-e29b-41d4-a716-446655440001",
+      "balanceDate": "2025-11-03",
+      "balance": 13277.87,
+      "currency": "RUB",
+      "fileId": "770e8400-e29b-41d4-a716-446655440002",
+      "createdAt": "2025-11-03T14:30:00",
+      "updatedAt": "2025-11-03T14:30:00"
+    }
+  ]
+}
+```
+
+#### Get latest balance for account
+```http
+GET /api/balances/account/{accountId}/latest
+Authorization: Bearer <token>
+```
+
+Returns the most recent balance record.
+
+### Uploaded Files
+
+#### Get all uploaded files
+```http
+GET /api/files
+Authorization: Bearer <token>
+```
+
+#### Get uploaded file by ID
+```http
+GET /api/files/{id}
+Authorization: Bearer <token>
+```
+
+#### Get files by account
+```http
+GET /api/files/account/{accountId}
 Authorization: Bearer <token>
 ```
 

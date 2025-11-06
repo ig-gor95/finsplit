@@ -14,3 +14,4 @@ CREATE INDEX idx_transactions_file_id ON transactions(file_id);
 --rollback ALTER TABLE transactions DROP CONSTRAINT fk_transactions_file;
 --rollback ALTER TABLE transactions DROP COLUMN file_id;
 
+

@@ -23,3 +23,4 @@ CREATE INDEX idx_accounts_account_number ON accounts(account_number);
 
 --rollback DROP TABLE accounts;
 
+

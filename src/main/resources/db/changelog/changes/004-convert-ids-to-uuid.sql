@@ -55,3 +55,4 @@ CREATE INDEX idx_transactions_user_id ON transactions(user_id);
 --rollback ALTER TABLE transactions ADD COLUMN id_old BIGSERIAL PRIMARY KEY;
 --rollback ALTER TABLE transactions ADD COLUMN user_id_old BIGINT;
 
+

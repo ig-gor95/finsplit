@@ -23,3 +23,4 @@ CREATE INDEX idx_transactions_category ON transactions(category);
 
 --rollback DROP TABLE transactions;
 
+

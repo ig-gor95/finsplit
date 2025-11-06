@@ -22,3 +22,4 @@ CREATE INDEX idx_transactions_account_number ON transactions(account_number);
 
 --rollback ALTER TABLE transactions DROP COLUMN external_id, DROP COLUMN document_number, DROP COLUMN document_date, DROP COLUMN account_number, DROP COLUMN payer_name, DROP COLUMN payer_inn, DROP COLUMN payer_account, DROP COLUMN recipient_name, DROP COLUMN recipient_inn, DROP COLUMN recipient_account, DROP COLUMN payment_purpose, DROP COLUMN source_file_name, DROP COLUMN imported_at;
 
+

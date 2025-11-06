@@ -30,8 +30,8 @@ class FileUploadController(
             Upload and parse banking transaction files from various banks.
             
             Supported banks and formats:
-            - RAIFFEISEN: Excel format (.xlsx or .xls files)
-            - ONE_C_FORMAT: 1C:Enterprise format (.txt files with windows-1251 encoding)
+            - RAIFFEISEN: Excel (.xlsx, .xls) or 1C text format (.txt with windows-1251 encoding)
+            - ONE_C_FORMAT: Generic 1C:Enterprise format (.txt files with windows-1251 encoding)
             
             The system will:
             - Parse all transactions from the file using bank-specific parser

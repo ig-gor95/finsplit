@@ -29,3 +29,4 @@ ALTER TABLE accounts ALTER COLUMN currency SET NOT NULL;
 --rollback UPDATE accounts SET current_balance = (balance_micros / 1000000.0);
 --rollback ALTER TABLE accounts DROP COLUMN balance_micros;
 
+

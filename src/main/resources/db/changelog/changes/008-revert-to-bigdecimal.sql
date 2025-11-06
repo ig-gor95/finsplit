@@ -20,3 +20,4 @@ ALTER TABLE accounts DROP COLUMN balance_micros;
 --rollback UPDATE accounts SET balance_micros = (current_balance * 1000000)::BIGINT;
 --rollback ALTER TABLE accounts DROP COLUMN current_balance;
 
+

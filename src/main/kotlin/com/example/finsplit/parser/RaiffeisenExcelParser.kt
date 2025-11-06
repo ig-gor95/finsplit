@@ -103,10 +103,12 @@ class RaiffeisenExcelParser : TransactionFileParser {
             var accountNumber: String? = null
             var currency: String? = null
             var previousStatementDate: LocalDate? = null
+            var statementDate: LocalDate? = null
             var openingBalance: BigDecimal? = null
+            var closingBalance: BigDecimal? = null
             
-            // Parse first 9 rows for metadata
-            for (i in 0 until minOf(9, sheet.lastRowNum + 1)) {
+            // Parse first 15 rows for metadata (increased to capture closing balance)
+            for (i in 0 until minOf(15, sheet.lastRowNum + 1)) {
                 val row = sheet.getRow(i) ?: continue
                 val firstCell = row.getCell(0)
                 val secondCell = row.getCell(1)
@@ -142,8 +144,15 @@ class RaiffeisenExcelParser : TransactionFileParser {
                     label.contains("дата предыдущей выписки") || label.contains("previous statement date") -> {
                         previousStatementDate = value?.let { parseDateString(it) }
                     }
+                    label.contains("дата текущей выписки") || label.contains("statement date") || 
+                    label.contains("дата выписки") -> {
+                        statementDate = value?.let { parseDateString(it) }
+                    }
                     label.contains("входящий остаток") || label.contains("opening balance") -> {
                         openingBalance = value?.let { parseBalanceString(it) }
+                    }
+                    label.contains("исходящий остаток") || label.contains("closing balance") -> {
+                        closingBalance = value?.let { parseBalanceString(it) }
                     }
                 }
             }
@@ -155,7 +164,9 @@ class RaiffeisenExcelParser : TransactionFileParser {
                 accountNumber = accountNumber,
                 currency = currency,
                 previousStatementDate = previousStatementDate,
-                openingBalance = openingBalance
+                statementDate = statementDate,
+                openingBalance = openingBalance,
+                closingBalance = closingBalance
             )
         } catch (e: Exception) {
             logger.warn("Failed to parse account metadata: ${e.message}")
@@ -227,11 +238,34 @@ class RaiffeisenExcelParser : TransactionFileParser {
         try {
             // Try to find relevant columns by common names
             val dateColumn = findColumn(columnIndices, "Дата документа", "Дата", "Date")
-            val amountColumn = findColumn(columnIndices, "Сумма", "Amount", "Дебет", "Кредит")
             val documentNumberColumn = findColumn(columnIndices, "Номер документа", "Номер", "Number")
             
+            // Look for debit and credit columns separately
+            val debitColumn = findColumn(columnIndices, "Дебет", "Debit")
+            val creditColumn = findColumn(columnIndices, "Кредит", "Credit")
+            
             val date = dateColumn?.let { getDateValue(row.getCell(it)) } ?: return null
-            val amount = amountColumn?.let { getNumericValue(row.getCell(it)) } ?: return null
+            
+            // Check credit column first (income)
+            val creditAmount = creditColumn?.let { getNumericValue(row.getCell(it)) }
+            // Then check debit column (expense)
+            val debitAmount = debitColumn?.let { getNumericValue(row.getCell(it)) }
+            
+            // Determine amount and transaction type based on which column has a value
+            val (amount, transactionType) = when {
+                creditAmount != null && creditAmount > BigDecimal.ZERO -> {
+                    Pair(creditAmount, TransactionType.INCOME)
+                }
+                debitAmount != null && debitAmount > BigDecimal.ZERO -> {
+                    Pair(debitAmount, TransactionType.EXPENSE)
+                }
+                else -> {
+                    // Fallback: try to find generic "Сумма" column
+                    val amountColumn = findColumn(columnIndices, "Сумма", "Amount")
+                    val amount = amountColumn?.let { getNumericValue(row.getCell(it)) } ?: return null
+                    Pair(amount.abs(), TransactionType.EXPENSE)
+                }
+            }
             
             if (amount == BigDecimal.ZERO) {
                 return null
@@ -264,7 +298,7 @@ class RaiffeisenExcelParser : TransactionFileParser {
                 recipientAccount = recipientAccount,
                 paymentPurpose = purpose ?: recipientBank?.let { "Payment to $recipientName via $it" },
                 currency = "RUB",
-                transactionType = TransactionType.EXPENSE  // Default for Raiffeisen, can be enhanced later
+                transactionType = transactionType
             )
         } catch (e: Exception) {
             logger.debug("Failed to parse row: ${e.message}")

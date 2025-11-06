@@ -14,3 +14,4 @@ CREATE INDEX idx_transactions_account_id ON transactions(account_id);
 --rollback ALTER TABLE transactions DROP CONSTRAINT fk_transactions_account;
 --rollback ALTER TABLE transactions DROP COLUMN account_id;
 
+

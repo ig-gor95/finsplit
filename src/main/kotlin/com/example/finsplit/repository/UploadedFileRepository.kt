@@ -13,3 +13,4 @@ interface UploadedFileRepository : JpaRepository<UploadedFile, UUID> {
     fun findByUserIdAndAccountId(userId: UUID, accountId: UUID, pageable: Pageable): Page<UploadedFile>
 }
 
+
