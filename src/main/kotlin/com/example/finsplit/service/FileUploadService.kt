@@ -135,22 +135,26 @@ class FileUploadService(
         logger.info("File upload completed for $fileName: imported=$importedCount, updated=$updatedCount, skipped=$skippedCount")
 
         // Save closing balance if present
-        if (accountMetadata.closingBalance != null && accountMetadata.statementDate != null) {
+        logger.info("Account metadata: closingBalance=${accountMetadata.closingBalance}, statementDate=${accountMetadata.statementDate}")
+        
+        if (accountMetadata.closingBalance != null) {
             // Find the latest transaction date in the uploaded file
             val latestUploadedTransactionDate = parsedTransactions
                 .maxOfOrNull { it.transactionDate }
             
+            logger.info("Attempting to save balance: date=${accountMetadata.statementDate}, balance=${accountMetadata.closingBalance}, latest tx date=$latestUploadedTransactionDate")
+            
             saveAccountBalanceIfLatest(
                 user = user,
                 account = account,
-                balanceDate = accountMetadata.statementDate,
+                balanceDate = LocalDate.now(),
                 balance = accountMetadata.closingBalance,
                 currency = accountMetadata.currency ?: account.currency,
                 fileId = savedFile.id,
                 latestTransactionDateInFile = latestUploadedTransactionDate
             )
         } else {
-            logger.warn("No closing balance or statement date found in file metadata")
+            logger.warn("No closing balance or statement date found in file metadata. ClosingBalance=${accountMetadata.closingBalance}, StatementDate=${accountMetadata.statementDate}")
         }
 
         // Update file record with final statistics

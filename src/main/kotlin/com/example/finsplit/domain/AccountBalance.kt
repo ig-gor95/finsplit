@@ -23,7 +23,7 @@ data class AccountBalance(
     @Column(name = "account_id", nullable = false)
     val accountId: UUID,
 
-    @Column(name = "balance_date", nullable = false)
+    @Column(name = "balance_date")
     val balanceDate: LocalDate,
 
     @Embedded

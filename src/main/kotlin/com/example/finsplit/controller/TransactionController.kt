@@ -39,14 +39,14 @@ class TransactionController(
 
     @GetMapping
     @Operation(
-        summary = "Get all transactions",
-        description = "Returns a paginated list of all transactions for the authenticated user"
+        summary = "Get all transactions with statistics",
+        description = "Returns a paginated list of all transactions with total income/expenses sums"
     )
     fun getTransactions(
         @PageableDefault(size = 20, sort = ["transactionDate"], direction = Sort.Direction.DESC)
         pageable: Pageable
-    ): ResponseEntity<Page<TransactionResponse>> {
-        val transactions = transactionService.getTransactions(pageable)
+    ): ResponseEntity<com.example.finsplit.dto.TransactionPageResponse> {
+        val transactions = transactionService.getTransactionsWithStats(pageable)
         return ResponseEntity.ok(transactions)
     }
 

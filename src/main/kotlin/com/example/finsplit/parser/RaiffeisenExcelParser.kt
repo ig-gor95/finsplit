@@ -108,7 +108,7 @@ class RaiffeisenExcelParser : TransactionFileParser {
             var closingBalance: BigDecimal? = null
             
             // Parse first 15 rows for metadata (increased to capture closing balance)
-            for (i in 0 until minOf(15, sheet.lastRowNum + 1)) {
+            for (i in 0 until sheet.lastRowNum + 1) {
                 val row = sheet.getRow(i) ?: continue
                 val firstCell = row.getCell(0)
                 val secondCell = row.getCell(1)
@@ -198,13 +198,15 @@ class RaiffeisenExcelParser : TransactionFileParser {
     
     private fun parseBalanceString(balanceStr: String): BigDecimal? {
         return try {
-            balanceStr.replace(" ", "")
-                .replace(",", ".")
-                .replace("Kp/Cr", "")
-                .replace("Дт/Dr", "")
-                .trim()
-                .toBigDecimalOrNull()
+            // Сначала заменяем запятую на точку, затем оставляем только цифры, точку и минус
+            val cleaned = balanceStr
+                .replace(",", ".")                   // Заменить запятую на точку
+                .replace(Regex("[^0-9.\\-]"), "")    // Удалить ВСЁ кроме цифр, точки и минуса
+            
+            logger.debug("Parsing balance: '$balanceStr' -> '$cleaned'")
+            cleaned.toBigDecimalOrNull()
         } catch (e: Exception) {
+            logger.warn("Failed to parse balance: $balanceStr", e)
             null
         }
     }
@@ -379,11 +381,12 @@ class RaiffeisenExcelParser : TransactionFileParser {
             when (cell.cellType) {
                 CellType.NUMERIC -> BigDecimal.valueOf(cell.numericCellValue)
                 CellType.STRING -> {
-                    cell.stringCellValue.trim()
+                    // Заменяем запятую на точку, затем удаляем ВСЁ кроме цифр, точки и минуса
+                    val cleaned = cell.stringCellValue
                         .replace(",", ".")
-                        .replace(" ", "")
-                        .replace("\\s+".toRegex(), "")
-                        .toBigDecimalOrNull()
+                        .replace(Regex("[^0-9.\\-]"), "")
+                    
+                    cleaned.toBigDecimalOrNull()
                 }
                 CellType.FORMULA -> {
                     try {

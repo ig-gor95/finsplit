@@ -14,6 +14,7 @@ data class AccountResponse(
     val currency: String,
     val lastStatementDate: LocalDate?,
     val currentBalance: BigDecimal?,
+    val latestBalanceDate: LocalDate?,  // Дата последнего баланса из account_balances
     val transactionCount: Int,
     val createdAt: LocalDateTime,
     val updatedAt: LocalDateTime

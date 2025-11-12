@@ -12,7 +12,8 @@ import java.util.UUID
 
 @Service
 class AccountService(
-    private val accountRepository: AccountRepository
+    private val accountRepository: AccountRepository,
+    private val accountBalanceRepository: com.example.finsplit.repository.AccountBalanceRepository
 ) {
 
     private val logger = LoggerFactory.getLogger(AccountService::class.java)
@@ -47,6 +48,13 @@ class AccountService(
     private fun toAccountResponse(account: Account): AccountResponse {
         val transactionCount = accountRepository.countTransactionsByAccountId(account.id)
         
+        // Получаем последний баланс из account_balances
+        val latestBalance = accountBalanceRepository.findLatestByAccountId(account.id)
+        val balance = latestBalance.map { it.balance.amount }.orElse(account.currentBalance)
+        val balanceDate = latestBalance.map { it.balanceDate }.orElse(null)
+        
+        logger.debug("Account ${account.accountNumber}: balance=$balance, balanceDate=$balanceDate, hasLatestBalance=${latestBalance.isPresent}")
+        
         return AccountResponse(
             id = account.id,
             accountNumber = account.accountNumber,
@@ -55,7 +63,8 @@ class AccountService(
             accountName = account.accountName,
             currency = account.currency,
             lastStatementDate = account.lastStatementDate,
-            currentBalance = account.currentBalance,
+            currentBalance = balance,
+            latestBalanceDate = balanceDate,
             transactionCount = transactionCount.toInt(),
             createdAt = account.createdAt,
             updatedAt = account.updatedAt

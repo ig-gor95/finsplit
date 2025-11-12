@@ -24,8 +24,8 @@ interface TransactionRepository : JpaRepository<Transaction, UUID> {
     
     fun findByUserIdAndCategory(userId: UUID, category: String, pageable: Pageable): Page<Transaction>
     
-    @Query("SELECT SUM(t.amount) FROM Transaction t WHERE t.userId = :userId AND t.transactionType = :type")
-    fun getTotalAmountByUserAndType(userId: UUID, type: TransactionType): BigDecimal?
+    @Query("SELECT COALESCE(SUM(t.amount), 0) FROM transactions t WHERE t.user_id = :userId AND t.transaction_type = :type", nativeQuery = true)
+    fun getTotalAmountByUserAndType(userId: UUID, type: String): BigDecimal?
     
     @Query("SELECT t FROM Transaction t WHERE t.userId = :userId AND t.transactionDate >= :startDate")
     fun findRecentTransactions(userId: UUID, startDate: LocalDateTime): List<Transaction>

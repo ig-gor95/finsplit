@@ -10,7 +10,7 @@ data class AccountMetadata(
     val accountNumber: String? = null,
     val currency: String? = null,
     val previousStatementDate: LocalDate? = null,
-    val statementDate: LocalDate? = null,
+    val statementDate: LocalDate? = LocalDate.now(),
     val openingBalance: BigDecimal? = null,
     val closingBalance: BigDecimal? = null
 )

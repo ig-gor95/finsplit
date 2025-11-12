@@ -49,6 +49,25 @@ class TransactionService(
         return transactionRepository.findByUserId(user.id, pageable)
             .map { toTransactionResponse(it) }
     }
+    
+    fun getTransactionsWithStats(pageable: Pageable): com.example.finsplit.dto.TransactionPageResponse {
+        val user = getCurrentUser()
+        val page = transactionRepository.findByUserId(user.id, pageable)
+        
+        // Вычисляем общие суммы по ВСЕМ транзакциям (не только текущей странице)
+        val stats = getStatistics()
+        
+        return com.example.finsplit.dto.TransactionPageResponse(
+            content = page.content.map { toTransactionResponse(it) },
+            totalElements = page.totalElements,
+            totalPages = page.totalPages,
+            currentPage = page.number,
+            pageSize = page.size,
+            totalIncome = stats.totalIncome,
+            totalExpenses = stats.totalExpenses,
+            balance = stats.balance
+        )
+    }
 
     fun getTransactionsByDateRange(
         startDate: LocalDateTime,
@@ -73,10 +92,18 @@ class TransactionService(
     fun getStatistics(): TransactionStatistics {
         val user = getCurrentUser()
         
-        val totalIncome = transactionRepository.getTotalAmountByUserAndType(user.id, TransactionType.INCOME) 
-            ?: BigDecimal.ZERO
-        val totalExpenses = transactionRepository.getTotalAmountByUserAndType(user.id, TransactionType.EXPENSE) 
-            ?: BigDecimal.ZERO
+        // Получаем все транзакции пользователя
+        val allTransactions = transactionRepository.findAll()
+            .filter { it.userId == user.id }
+        
+        // Вычисляем суммы
+        val totalIncome = allTransactions
+            .filter { it.transactionType == TransactionType.INCOME }
+            .sumOf { it.amount.amount }
+        
+        val totalExpenses = allTransactions
+            .filter { it.transactionType == TransactionType.EXPENSE }
+            .sumOf { it.amount.amount }
 
         return TransactionStatistics(
             totalIncome = totalIncome,
