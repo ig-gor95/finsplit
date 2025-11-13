@@ -17,12 +17,6 @@ buildNumber.properties
 *.ipr
 out/
 
-# Eclipse
-.classpath
-.project
-.settings/
-bin/
-
 # VS Code
 .vscode/
 
