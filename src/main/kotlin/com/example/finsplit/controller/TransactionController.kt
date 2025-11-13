@@ -43,10 +43,20 @@ class TransactionController(
         description = "Returns a paginated list of all transactions with total income/expenses sums"
     )
     fun getTransactions(
+        @RequestParam(required = false) accountId: UUID?,
+        @RequestParam(required = false) transactionType: String?,
+        @RequestParam(required = false) status: String?,
+        @RequestParam(required = false) currency: String?,
         @PageableDefault(size = 20, sort = ["transactionDate"], direction = Sort.Direction.DESC)
         pageable: Pageable
     ): ResponseEntity<com.example.finsplit.dto.TransactionPageResponse> {
-        val transactions = transactionService.getTransactionsWithStats(pageable)
+        val transactions = transactionService.getTransactionsWithStats(
+            accountId = accountId,
+            transactionType = transactionType,
+            status = status,
+            currency = currency,
+            pageable = pageable
+        )
         return ResponseEntity.ok(transactions)
     }
 

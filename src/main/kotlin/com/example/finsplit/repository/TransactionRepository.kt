@@ -40,5 +40,22 @@ interface TransactionRepository : JpaRepository<Transaction, UUID> {
     
     @Query("SELECT MAX(t.transactionDate) FROM Transaction t WHERE t.accountId = :accountId")
     fun findLatestTransactionDateByAccountId(accountId: UUID): LocalDateTime?
+    
+    @Query("""
+        SELECT t FROM Transaction t 
+        WHERE t.userId = :userId
+        AND (:accountId IS NULL OR t.accountId = :accountId)
+        AND (:transactionType IS NULL OR CAST(t.transactionType AS string) = :transactionType)
+        AND (:status IS NULL OR t.status = :status)
+        AND (:currency IS NULL OR t.amount.currency = :currency)
+    """)
+    fun findByUserIdWithFilters(
+        userId: UUID,
+        accountId: UUID?,
+        transactionType: String?,
+        status: String?,
+        currency: String?,
+        pageable: Pageable
+    ): Page<Transaction>
 }
 

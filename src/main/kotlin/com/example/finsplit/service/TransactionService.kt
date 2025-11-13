@@ -50,11 +50,26 @@ class TransactionService(
             .map { toTransactionResponse(it) }
     }
     
-    fun getTransactionsWithStats(pageable: Pageable): com.example.finsplit.dto.TransactionPageResponse {
+    fun getTransactionsWithStats(
+        accountId: UUID? = null,
+        transactionType: String? = null,
+        status: String? = null,
+        currency: String? = null,
+        pageable: Pageable
+    ): com.example.finsplit.dto.TransactionPageResponse {
         val user = getCurrentUser()
-        val page = transactionRepository.findByUserId(user.id, pageable)
         
-        // Вычисляем общие суммы по ВСЕМ транзакциям (не только текущей странице)
+        // Получаем отфильтрованные транзакции
+        val page = transactionRepository.findByUserIdWithFilters(
+            userId = user.id,
+            accountId = accountId,
+            transactionType = transactionType,
+            status = status,
+            currency = currency,
+            pageable = pageable
+        )
+        
+        // Вычисляем общие суммы по ВСЕМ транзакциям пользователя (не только текущей странице)
         val stats = getStatistics()
         
         return com.example.finsplit.dto.TransactionPageResponse(
