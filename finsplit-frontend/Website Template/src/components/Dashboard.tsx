@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { UploadStatements } from './UploadStatements';
 import { PricingModal } from './PricingModal';
 import { TaxReportWizard } from './TaxReportWizard';
@@ -66,7 +66,8 @@ import {
   Link,
   AlertTriangle,
   Lightbulb,
-  X
+  X,
+  Check
 } from 'lucide-react';
 import {
   PieChart as RePieChart,
@@ -509,7 +510,32 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
-  const [activeSection, setActiveSection] = useState('dashboard');
+  // Читаем активную секцию из URL
+  const getInitialSection = () => {
+    const hash = window.location.hash.replace('#', '');
+    return hash || 'dashboard';
+  };
+  
+  const [activeSection, setActiveSection] = useState(getInitialSection());
+  
+  // Синхронизируем activeSection с URL
+  const handleSectionChange = (section: string) => {
+    setActiveSection(section);
+    window.location.hash = section;
+  };
+  
+  // Слушаем изменения hash в URL (например, при нажатии кнопки "назад")
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '');
+      if (hash) {
+        setActiveSection(hash); // Здесь можно setActiveSection, т.к. hash уже изменился
+      }
+    };
+    
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showPricingModal, setShowPricingModal] = useState(false);
@@ -526,6 +552,11 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
   const [selectedCurrency, setSelectedCurrency] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Комментарии к транзакциям
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [showingCommentId, setShowingCommentId] = useState<string | null>(null);
 
   // API hooks - только для реального режима (не demo)
   const { data: accountsData, isLoading: isLoadingAccounts } = useAccounts();
@@ -604,14 +635,14 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
   // Используем реальные данные из API или fallback на mock для demo режима
   const accountsList = isDemo ? accounts : (accountsData || []);
   const transactionsList = isDemo ? transactions : (transactionsData?.content || []);
-  const [primaryAccountCurrency, setPrimaryAccountCurrency] = useState<string>('USD');
+  const [primaryAccountCurrency, setPrimaryAccountCurrency] = useState<string>('RUB');
   const [syncFrequency, setSyncFrequency] = useState('daily');
   const [fxFrom, setFxFrom] = useState('USD');
   const [fxTo, setFxTo] = useState('KZT');
   const [fxAmount, setFxAmount] = useState('1000');
   const [selectedTaxCountry, setSelectedTaxCountry] = useState('KZ');
   const [showNotifications, setShowNotifications] = useState(false);
-  const [displayCurrency, setDisplayCurrency] = useState('USD');
+  const [displayCurrency, setDisplayCurrency] = useState('RUB');
   const [periodFilter, setPeriodFilter] = useState('last30days');
   const [notifications, setNotifications] = useState(initialNotifications);
   const [notificationFilter, setNotificationFilter] = useState<'all' | 'unread' | 'read'>('all');
@@ -814,12 +845,15 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
     return amountInKZT / currencyRates[displayCurrency];
   };
 
-  const formatCurrency = (amount: number, currency: string) => {
+  const formatCurrency = (amount: number | undefined | null, currency: string) => {
+    if (amount === undefined || amount === null || isNaN(amount)) {
+      return `0 ${currency}`;
+    }
     const absAmount = Math.abs(amount);
     if (currency === 'KZT' || currency === 'RUB') {
-      return `${absAmount.toLocaleString()} ${currency}`;
+      return `${absAmount.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
     }
-    return `$${absAmount.toLocaleString()}`;
+    return `${absAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
   };
   
   const formatDisplayCurrency = (amount: number) => {
@@ -906,7 +940,7 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
               <button
                 key={section.id}
                 onClick={() => {
-                  setActiveSection(section.id);
+                  handleSectionChange(section.id);
                   setShowNotifications(false);
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all text-left group relative ${
@@ -1023,7 +1057,7 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
 
               {/* Notifications Bell */}
               <button
-                onClick={() => setActiveSection('notifications')}
+                onClick={() => handleSectionChange('notifications')}
                 className="relative w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
               >
                 <Bell className="w-5 h-5 text-gray-600" />
@@ -1211,7 +1245,7 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                     {t('accounts.title')}
                   </h3>
                   <button
-                    onClick={() => setActiveSection('accounts')}
+                    onClick={() => handleSectionChange('accounts')}
                     className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1"
                   >
                     {t('dashboard.viewAll')}
@@ -1229,7 +1263,7 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                         {language === 'ru' ? 'Нет счетов. Загрузите банковскую выписку.' : 'No accounts yet. Upload a bank statement.'}
                       </p>
                       <button
-                        onClick={() => setActiveSection('upload')}
+                        onClick={() => handleSectionChange('upload')}
                         className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg hover:shadow-lg transition-all"
                       >
                         {language === 'ru' ? 'Загрузить выписку' : 'Upload Statement'}
@@ -1263,7 +1297,7 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                               );
                             } else {
                               setSelectedCurrency(account.currency);
-                              setActiveSection('transactions');
+                              handleSectionChange('transactions');
                               toast.info(language === 'ru' 
                                 ? `Показ операций для ${accountName}` 
                                 : `Showing transactions for ${accountName}`
@@ -1319,7 +1353,7 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                     {t('dashboard.recentTransactions')}
                   </h3>
                   <button
-                    onClick={() => setActiveSection('transactions')}
+                    onClick={() => handleSectionChange('transactions')}
                     className="text-sm text-blue-600 hover:text-blue-700 flex items-center gap-1 transition-all hover:gap-2"
                   >
                     {t('dashboard.viewAll')}
@@ -1399,7 +1433,7 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
 
               {/* Analytics Widgets */}
               <DashboardAnalytics 
-                onNavigate={(section) => setActiveSection(section)}
+                onNavigate={(section) => handleSectionChange(section)}
                 onFilterCategory={(category) => setSelectedCategory(category)}
                 onFilterCurrency={(currency) => setSelectedCurrency(currency)}
                 displayCurrency={displayCurrency}
@@ -1553,18 +1587,16 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                     <OrganizationSelector compact={true} />
                   </div>
 
-                  {/* Add Account Button & Sync Settings */}
+                  {/* Add Account Button */}
                   <div className="flex flex-wrap items-center justify-between gap-4">
                     <h3 className="text-lg text-gray-900">{t('accounts.title')}</h3>
                     <div className="flex gap-3">
                       <button 
-                        onClick={() => {
-                          toast.success(language === 'ru' ? 'Синхронизация...' : 'Syncing...');
-                        }}
+                        onClick={() => setShowUploadModal(true)}
                         className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all flex items-center gap-2"
                       >
-                        <RefreshCw className="w-5 h-5" />
-                        {language === 'ru' ? 'Синхронизировать' : 'Sync Now'}
+                        <Upload className="w-5 h-5" />
+                        {language === 'ru' ? 'Загрузить выписку' : 'Upload Statement'}
                       </button>
                       <button 
                         onClick={() => setShowAddAccount(true)}
@@ -1576,75 +1608,22 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                     </div>
                   </div>
 
-                  {/* Sync Settings */}
-                  <div className="bg-white rounded-xl border-2 border-gray-200 p-6 shadow-sm">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
-                      <h3 className="text-lg text-gray-900 flex items-center gap-2">
-                        <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
-                          <RefreshCw className="w-4 h-4 text-white" />
-                        </div>
-                        {language === 'ru' ? 'Настройки синхронизации' : 'Sync Settings'}
-                      </h3>
-                      <div className="relative">
-                        <select
-                          value={syncFrequency}
-                          onChange={(e) => {
-                            setSyncFrequency(e.target.value);
-                            toast.success(
-                              language === 'ru'
-                                ? `Частота обновления: ${e.target.value === 'hourly' ? 'Раз в час' : e.target.value === 'daily' ? 'Раз в день' : 'Вручную'}`
-                                : `Update frequency: ${e.target.value}`
-                            );
-                          }}
-                          className="pl-4 pr-10 py-2.5 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent text-sm bg-white appearance-none hover:border-blue-400 transition-colors min-w-[180px]"
-                        >
-                          <option value="manual">✋ {language === 'ru' ? 'Вручную' : 'Manual'}</option>
-                          <option value="hourly">⏰ {language === 'ru' ? 'Раз в час' : 'Hourly'}</option>
-                          <option value="daily">📅 {language === 'ru' ? 'Раз в день' : 'Daily'}</option>
-                          <option value="realtime">⚡ {language === 'ru' ? 'Реальное время' : 'Real-time'}</option>
-                        </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                          <ChevronRight className="w-5 h-5 text-gray-400 rotate-90" />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm text-green-900">Halyk Bank (KZ)</p>
-                          <p className="text-xs text-green-600">{language === 'ru' ? 'Подключено • 2 мин назад' : 'Connected • 2 min ago'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm text-green-900">Sberbank (RU)</p>
-                          <p className="text-xs text-green-600">{language === 'ru' ? 'Подключено • 5 мин назад' : 'Connected • 5 min ago'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-                        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                        <div>
-                          <p className="text-sm text-amber-900">TBC Bank (GE)</p>
-                          <p className="text-xs text-amber-600">{language === 'ru' ? 'API т��кен истёк' : 'API token expired'}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                   {/* Accounts Grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {filteredAccounts.map((account) => {
-                      const baseBalance = account.balance * (exchangeRates[account.currency] || 1);
+                      // Для реальных данных из API
+                      const accountBalance = account.currentBalance || account.balance || 0;
+                      const baseBalance = accountBalance * (exchangeRates[account.currency] || 1);
                       const displayBalance = primaryAccountCurrency 
-                        ? (account.balance * (exchangeRates[account.currency] || 1)) / (exchangeRates[primaryAccountCurrency] || 1)
+                        ? (accountBalance * (exchangeRates[account.currency] || 1)) / (exchangeRates[primaryAccountCurrency] || 1)
                         : baseBalance;
                       const displayCurr = primaryAccountCurrency || displayCurrency;
-                      const lastUpdated = account.lastUpdated || '2h ago';
-                      const isOutdated = lastUpdated.includes('days') || lastUpdated.includes('дн');
+                      const lastUpdated = account.lastUpdated || account.latestBalanceDate || '2h ago';
+                      const isOutdated = typeof lastUpdated === 'string' && (lastUpdated.includes('days') || lastUpdated.includes('дн'));
                       const category = account.category || 'Revenue';
-                      const bankName = account.bank || account.type;
+                      const bankName = account.bank || account.type || 'Bank';
+                      const accountColor = account.color || 'from-blue-500 to-purple-500';
+                      const accountFlag = account.flag || '🏦';
                       
                       return (
                         <div
@@ -1655,10 +1634,10 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                             setShowAccountDetails(true);
                           }}
                         >
-                          <div className={`w-full h-40 bg-gradient-to-br ${account.color} rounded-xl mb-4 p-5 flex flex-col justify-between text-white shadow-lg`}>
+                          <div className={`w-full h-40 bg-gradient-to-br ${accountColor} rounded-xl mb-4 p-5 flex flex-col justify-between text-white shadow-lg`}>
                             <div className="flex items-center justify-between">
                               <div className="flex items-center gap-2">
-                                <span className="text-3xl">{account.flag}</span>
+                                <span className="text-3xl">{accountFlag}</span>
                                 <span className="text-2xl">{bankName === 'Kaspi Bank' ? '💳' : bankName === 'Halyk Bank' ? '🏛️' : bankName === 'Sberbank' ? '🇷🇺' : '🏦'}</span>
                               </div>
                               <div className="flex flex-col gap-1">
@@ -1678,11 +1657,11 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                             </div>
                             <div>
                               <p className="text-sm text-white/80 mb-1">{account.accountNumber}</p>
-                              <p className="text-3xl mb-1">{formatCurrency(account.balance, account.currency)}</p>
+                              <p className="text-3xl mb-1">{formatCurrency(accountBalance, account.currency)}</p>
                               <p className="text-xs text-white/70">
                                 {primaryAccountCurrency && account.currency !== primaryAccountCurrency 
                                   ? `≈ ${formatCurrency(displayBalance, displayCurr)}`
-                                  : `${account.currency} • ≈ ${formatCurrency(baseBalance, displayCurrency)}`
+                                  : `${account.currency}`
                                 }
                               </p>
                             </div>
@@ -1690,10 +1669,10 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                           <div className="space-y-3">
                             <div className="flex items-center justify-between">
                               <div>
-                                <span className="text-sm text-gray-900 block">{account.name}</span>
-                                <span className="text-xs text-gray-500">{bankName}</span>
+                                <span className="text-sm text-gray-900 block">{account.accountName || account.name || account.accountNumber}</span>
+                                <span className="text-xs text-gray-500">{account.clientName || bankName}</span>
                               </div>
-                              <span className="text-sm text-gray-600">{account.country}</span>
+                              <span className="text-sm text-gray-600">{account.transactionCount || 0} tx</span>
                             </div>
                             
                             {/* Status Update */}
@@ -1853,7 +1832,7 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                         <tr key={op.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
                           <td className="py-4 px-4 text-sm text-gray-900">{op.date}</td>
                           <td className="py-4 px-4 text-sm text-gray-900">
-                            {op.amount.toLocaleString()} {op.from} → {op.total.toLocaleString()} {op.to}
+                            {(op.amount || 0).toLocaleString()} {op.from} → {(op.total || 0).toLocaleString()} {op.to}
                           </td>
                           <td className="py-4 px-4 text-sm text-gray-900">{op.rate}</td>
                           <td className="py-4 px-4">
@@ -2115,7 +2094,7 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                         </p>
                         <div className="flex items-center justify-between">
                           <p className="text-sm text-orange-900">
-                            USD {anomaly.amount.toLocaleString()}
+                            USD {(anomaly.amount || 0).toLocaleString()}
                           </p>
                           <span className="px-2 py-0.5 bg-orange-200 text-orange-800 text-xs rounded">
                             +{anomaly.percentageAboveAvg}% {language === 'ru' ? 'выше среднего' : 'above average'}
@@ -2189,7 +2168,7 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
             <CostAnalysis
               displayCurrency={displayCurrency}
               periodFilter={periodFilter}
-              onNavigate={setActiveSection}
+              onNavigate={handleSectionChange}
               primaryCurrency={primaryAccountCurrency}
             />
           )}
@@ -2640,8 +2619,95 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                               </td>
 
                               {/* Actions Column */}
-                              <td className="px-4 py-4">
+                              <td className="px-4 py-4 relative" onClick={(e) => e.stopPropagation()}>
                                 <div className="flex items-center justify-center gap-1">
+                                  {/* Comment indicator or button */}
+                                  {transaction.latestComment ? (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowingCommentId(showingCommentId === transaction.id ? null : transaction.id);
+                                      }}
+                                      className="relative w-7 h-7 bg-amber-100 hover:bg-amber-200 rounded-lg flex items-center justify-center transition-all"
+                                      title={language === 'ru' ? 'Показать комментарий' : 'Show comment'}
+                                    >
+                                      <AlertCircle className="w-4 h-4 text-amber-600" />
+                                    </button>
+                                  ) : editingCommentId === transaction.id ? (
+                                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                      <input
+                                        type="text"
+                                        value={commentText}
+                                        onChange={(e) => setCommentText(e.target.value)}
+                                        maxLength={200}
+                                        placeholder={language === 'ru' ? 'Комментарий...' : 'Comment...'}
+                                        className="px-2 py-1 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
+                                        autoFocus
+                                      />
+                                      <button
+                                        onClick={async () => {
+                                          if (commentText.trim() && !isDemo) {
+                                            try {
+                                              // Вызываем API для сохранения комментария
+                                              const response = await fetch(`/api/transactions/${transaction.id}/comments`, {
+                                                method: 'POST',
+                                                headers: {
+                                                  'Content-Type': 'application/json',
+                                                  'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+                                                },
+                                                body: JSON.stringify({ commentText: commentText.trim() })
+                                              });
+                                              
+                                              if (response.ok) {
+                                                // Обновляем транзакцию в списке
+                                                transaction.latestComment = commentText.trim();
+                                                toast.success(language === 'ru' ? 'Комментарий сохранен' : 'Comment saved');
+                                              } else {
+                                                toast.error(language === 'ru' ? 'Ошибка сохранения' : 'Save failed');
+                                              }
+                                            } catch (error) {
+                                              console.error('Error saving comment:', error);
+                                              toast.error(language === 'ru' ? 'Ошибка сохранения' : 'Save failed');
+                                            }
+                                          } else if (isDemo) {
+                                            // Для demo - сохраняем в объект транзакции
+                                            transaction.latestComment = commentText.trim();
+                                            toast.success(language === 'ru' ? 'Комментарий сохранен (demo)' : 'Comment saved (demo)');
+                                          }
+                                          setEditingCommentId(null);
+                                          setCommentText('');
+                                        }}
+                                        disabled={!commentText.trim()}
+                                        className="w-7 h-7 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg flex items-center justify-center transition-all"
+                                        title={language === 'ru' ? 'Сохранить' : 'Save'}
+                                      >
+                                        <Check className="w-4 h-4 text-white" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingCommentId(null);
+                                          setCommentText('');
+                                        }}
+                                        className="w-7 h-7 bg-gray-200 hover:bg-gray-300 rounded-lg flex items-center justify-center transition-all"
+                                        title={language === 'ru' ? 'Отмена' : 'Cancel'}
+                                      >
+                                        <X className="w-3.5 h-3.5 text-gray-600" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEditingCommentId(transaction.id);
+                                        setCommentText('');
+                                      }}
+                                      className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-70 hover:opacity-100 hover:bg-gray-200 transition-all"
+                                      title={language === 'ru' ? 'Добавить комментарий' : 'Add comment'}
+                                    >
+                                      <Mail className="w-3.5 h-3.5 text-gray-600" />
+                                    </button>
+                                  )}
+                                  
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -2649,22 +2715,35 @@ export function Dashboard({ onLogout, isDemo = false }: DashboardProps) {
                                       setShowTransactionDetails(true);
                                     }}
                                     className="w-7 h-7 bg-blue-50 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-70 hover:opacity-100 hover:bg-blue-100 transition-all"
-                                    title={language === 'ru' ? 'Редактировать' : 'Edit'}
-                                  >
-                                    <Edit className="w-3.5 h-3.5 text-blue-600" />
-                                  </button>
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setSelectedTransaction(transaction);
-                                      setShowTransactionDetails(true);
-                                    }}
-                                    className="w-7 h-7 bg-gray-200 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-60 hover:opacity-100 transition-all"
                                     title={language === 'ru' ? 'Детали' : 'Details'}
                                   >
-                                    <ChevronRight className="w-3.5 h-3.5 text-gray-600" />
+                                    <Eye className="w-3.5 h-3.5 text-blue-600" />
                                   </button>
                                 </div>
+                                
+                                {/* Comment popup */}
+                                {showingCommentId === transaction.id && transaction.latestComment && (
+                                  <div className="absolute right-0 top-12 z-50 p-3 bg-white border-2 border-amber-200 rounded-lg shadow-xl max-w-xs min-w-[200px]">
+                                    <div className="flex items-start justify-between gap-2 mb-2">
+                                      <div className="flex items-center gap-1">
+                                        <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                                        <p className="text-xs font-medium text-gray-700">
+                                          {language === 'ru' ? 'Комментарий' : 'Comment'}
+                                        </p>
+                                      </div>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setShowingCommentId(null);
+                                        }}
+                                        className="text-gray-400 hover:text-gray-600"
+                                      >
+                                        <X className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                    <p className="text-sm text-gray-900 break-words whitespace-pre-wrap">{transaction.latestComment}</p>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           );

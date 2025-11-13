@@ -32,8 +32,7 @@ class AccountBalanceService(
 
     fun getLatestBalance(accountId: UUID): AccountBalanceResponse? {
         val user = getCurrentUser()
-        val balance = accountBalanceRepository.findLatestByAccountId(accountId)
-            .orElse(null) ?: return null
+        val balance = accountBalanceRepository.findLatestByAccountId(accountId) ?: return null
 
         if (balance.userId != user.id) {
             logger.warn("Unauthorized access attempt to balance by user ${user.id}")

@@ -26,10 +26,9 @@ class UploadedFileService(
 
     fun getUploadedFileById(id: UUID): UploadedFileResponse {
         val user = getCurrentUser()
-        val file = uploadedFileRepository.findById(id)
-            .orElseThrow {
+        val file = uploadedFileRepository.findById(id).orElse(null)
+            ?: throw IllegalArgumentException("Uploaded file not found: $id").also {
                 logger.warn("Uploaded file not found: $id")
-                IllegalArgumentException("Uploaded file not found")
             }
 
         if (file.userId != user.id) {

@@ -26,10 +26,9 @@ class AccountService(
 
     fun getAccountById(id: UUID): AccountResponse {
         val user = getCurrentUser()
-        val account = accountRepository.findById(id)
-            .orElseThrow {
+        val account = accountRepository.findById(id).orElse(null)
+            ?: throw IllegalArgumentException("Account not found: $id").also {
                 logger.warn("Account not found: $id")
-                IllegalArgumentException("Account not found")
             }
 
         if (account.userId != user.id) {
@@ -50,10 +49,10 @@ class AccountService(
         
         // Получаем последний баланс из account_balances
         val latestBalance = accountBalanceRepository.findLatestByAccountId(account.id)
-        val balance = latestBalance.map { it.balance.amount }.orElse(account.currentBalance)
-        val balanceDate = latestBalance.map { it.balanceDate }.orElse(null)
+        val balance = latestBalance?.balance?.amount ?: account.currentBalance
+        val balanceDate = latestBalance?.balanceDate
         
-        logger.debug("Account ${account.accountNumber}: balance=$balance, balanceDate=$balanceDate, hasLatestBalance=${latestBalance.isPresent}")
+        logger.debug("Account ${account.accountNumber}: balance=$balance, balanceDate=$balanceDate, hasLatestBalance=${latestBalance != null}")
         
         return AccountResponse(
             id = account.id,

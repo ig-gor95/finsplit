@@ -64,6 +64,7 @@ export interface Transaction {
   paymentPurpose?: string;
   documentNumber?: string;
   createdAt: string;
+  latestComment?: string;
 }
 
 export interface TransactionStatistics {
@@ -148,5 +149,20 @@ export interface ApiError {
   status: number;
   timestamp: string;
   path?: string;
+}
+
+export interface AccountBalancePoint {
+  date: string;
+  balance: number;
+}
+
+export interface AccountDetails {
+  account: Account;
+  currentBalance: number;
+  balanceChange30d: number;
+  balance30dAgo: number;
+  averageBalance30d: number;
+  balanceHistory30d: AccountBalancePoint[];
+  transactions: Transaction[];
 }
 

@@ -186,17 +186,15 @@ class FileUploadService(
 
         val existingAccount = accountRepository.findByUserIdAndAccountNumber(user.id, metadata.accountNumber)
         
-        return if (existingAccount.isPresent) {
-            val account = existingAccount.get()
-            
+        return if (existingAccount != null) {
             // Update account with latest metadata
-            val updated = account.copy(
-                clientName = metadata.clientName ?: account.clientName,
-                inn = metadata.inn ?: account.inn,
-                accountName = metadata.accountName ?: account.accountName,
-                currency = metadata.currency ?: account.currency,
-                lastStatementDate = metadata.previousStatementDate ?: account.lastStatementDate,
-                currentBalance = metadata.openingBalance ?: account.currentBalance,
+            val updated = existingAccount.copy(
+                clientName = metadata.clientName ?: existingAccount.clientName,
+                inn = metadata.inn ?: existingAccount.inn,
+                accountName = metadata.accountName ?: existingAccount.accountName,
+                currency = metadata.currency ?: existingAccount.currency,
+                lastStatementDate = metadata.previousStatementDate ?: existingAccount.lastStatementDate,
+                currentBalance = metadata.openingBalance ?: existingAccount.currentBalance,
                 updatedAt = LocalDateTime.now()
             )
             accountRepository.save(updated)
@@ -311,9 +309,9 @@ class FileUploadService(
         
         val existingBalance = accountBalanceRepository.findByAccountIdAndBalanceDate(account.id, balanceDate)
         
-        if (existingBalance.isPresent) {
+        if (existingBalance != null) {
             // Update existing balance
-            val updated = existingBalance.get().copy(
+            val updated = existingBalance.copy(
                 balance = Money.of(balance, currency),
                 fileId = fileId,
                 updatedAt = LocalDateTime.now()

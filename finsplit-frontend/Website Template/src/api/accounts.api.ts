@@ -1,5 +1,5 @@
 import { apiClient } from './config';
-import { Account, AccountBalance, PaginatedResponse } from './types';
+import { Account, AccountBalance, AccountDetails, PaginatedResponse } from './types';
 
 export const accountsApi = {
   // Получить все счета пользователя
@@ -32,6 +32,12 @@ export const accountsApi = {
   // Получить последний баланс счёта
   getLatestBalance: async (accountId: string): Promise<AccountBalance | null> => {
     const response = await apiClient.get<AccountBalance>(`/accounts/${accountId}/balances/latest`);
+    return response.data;
+  },
+
+  // Получить детальную аналитику по счёту
+  getAccountDetails: async (accountId: string): Promise<AccountDetails> => {
+    const response = await apiClient.get<AccountDetails>(`/accounts/${accountId}/details`);
     return response.data;
   },
 };

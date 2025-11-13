@@ -20,7 +20,7 @@ import org.springframework.web.multipart.MultipartFile
 @Tag(name = "File Upload", description = "Upload and parse banking transaction files from different banks")
 @SecurityRequirement(name = "Bearer Authentication")
 class FileUploadController(
-    private val fileUploadService: FileUploadService
+    private val fileUploadService: FileUploadService // TODO: Refactor to UploadBankStatementUseCase
 ) {
 
     @PostMapping("/upload", consumes = [MediaType.MULTIPART_FORM_DATA_VALUE])

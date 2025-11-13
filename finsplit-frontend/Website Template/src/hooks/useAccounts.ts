@@ -33,3 +33,12 @@ export const useLatestBalance = (accountId: string) => {
   });
 };
 
+export const useAccountDetails = (accountId?: string | null) => {
+  return useQuery({
+    queryKey: ['accounts', accountId, 'details'],
+    queryFn: () => accountsApi.getAccountDetails(accountId as string),
+    enabled: !!accountId,
+    staleTime: 60 * 1000,
+  });
+};
+

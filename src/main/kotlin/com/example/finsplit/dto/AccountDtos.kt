@@ -20,3 +20,18 @@ data class AccountResponse(
     val updatedAt: LocalDateTime
 )
 
+data class AccountBalancePoint(
+    val date: LocalDate,
+    val balance: BigDecimal
+)
+
+data class AccountDetailsResponse(
+    val account: AccountResponse,
+    val currentBalance: BigDecimal,
+    val balanceChange30d: BigDecimal,
+    val balance30dAgo: BigDecimal,
+    val averageBalance30d: BigDecimal,
+    val balanceHistory30d: List<AccountBalancePoint>,
+    val transactions: List<TransactionResponse>
+)
+

@@ -4,12 +4,12 @@ import com.example.finsplit.domain.Account
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
-import java.util.*
+import java.util.UUID
 
 @Repository
 interface AccountRepository : JpaRepository<Account, UUID> {
-    fun findByAccountNumber(accountNumber: String): Optional<Account>
-    fun findByUserIdAndAccountNumber(userId: UUID, accountNumber: String): Optional<Account>
+    fun findByAccountNumber(accountNumber: String): Account?
+    fun findByUserIdAndAccountNumber(userId: UUID, accountNumber: String): Account?
     fun findByUserId(userId: UUID): List<Account>
     
     @Query("SELECT COUNT(t) FROM Transaction t WHERE t.accountId = :accountId")

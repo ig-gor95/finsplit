@@ -65,7 +65,7 @@ class AuthService(
         }
 
         val user = userRepository.findByEmail(request.email)
-            .orElseThrow { IllegalArgumentException("Invalid credentials") }
+            ?: throw IllegalArgumentException("Invalid credentials")
 
         val token = jwtTokenProvider.generateToken(user)
 

@@ -50,7 +50,8 @@ data class TransactionResponse(
     val recipientAccount: String?,
     val paymentPurpose: String?,
     val documentNumber: String?,
-    val createdAt: LocalDateTime
+    val createdAt: LocalDateTime,
+    val latestComment: String? = null  // Последний комментарий
 )
 
 data class TransactionStatistics(

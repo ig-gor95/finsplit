@@ -130,10 +130,9 @@ class TransactionService(
 
     fun getTransactionById(id: UUID): TransactionResponse {
         val user = getCurrentUser()
-        val transaction = transactionRepository.findById(id)
-            .orElseThrow { 
+        val transaction = transactionRepository.findById(id).orElse(null)
+            ?: throw IllegalArgumentException("Transaction not found: $id").also {
                 logger.warn("Transaction not found: $id")
-                IllegalArgumentException("Transaction not found") 
             }
 
         if (transaction.userId != user.id) {

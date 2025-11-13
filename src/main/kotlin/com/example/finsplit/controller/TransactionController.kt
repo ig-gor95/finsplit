@@ -1,8 +1,8 @@
 package com.example.finsplit.controller
 
-import com.example.finsplit.dto.CreateTransactionRequest
-import com.example.finsplit.dto.TransactionResponse
-import com.example.finsplit.dto.TransactionStatistics
+import com.example.finsplit.domain.TransactionType
+import com.example.finsplit.dto.*
+import com.example.finsplit.usecase.transaction.*
 import com.example.finsplit.service.TransactionService
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
@@ -24,7 +24,12 @@ import java.util.UUID
 @Tag(name = "Transactions", description = "Banking transaction management and analytics endpoints")
 @SecurityRequirement(name = "Bearer Authentication")
 class TransactionController(
-    private val transactionService: TransactionService
+    private val searchTransactionsUseCase: SearchTransactionsUseCase,
+    private val getTransactionStatisticsUseCase: GetTransactionStatisticsUseCase,
+    private val getTransactionByIdUseCase: GetTransactionByIdUseCase,
+    private val addCommentToTransactionUseCase: AddCommentToTransactionUseCase,
+    private val getTransactionCommentsUseCase: GetTransactionCommentsUseCase,
+    private val transactionService: TransactionService // Temporary for create and other methods
 ) {
 
     @PostMapping
@@ -40,21 +45,26 @@ class TransactionController(
     @GetMapping
     @Operation(
         summary = "Get all transactions with statistics",
-        description = "Returns a paginated list of all transactions with total income/expenses sums"
+        description = "Returns a paginated list of all transactions with total income/expenses sums. Supports filtering via JPA Specifications."
     )
     fun getTransactions(
         @RequestParam(required = false) accountId: UUID?,
         @RequestParam(required = false) transactionType: String?,
         @RequestParam(required = false) status: String?,
         @RequestParam(required = false) currency: String?,
+        @RequestParam(required = false) search: String?,
         @PageableDefault(size = 20, sort = ["transactionDate"], direction = Sort.Direction.DESC)
         pageable: Pageable
     ): ResponseEntity<com.example.finsplit.dto.TransactionPageResponse> {
-        val transactions = transactionService.getTransactionsWithStats(
+        // Конвертируем String в TransactionType
+        val type = transactionType?.let { TransactionType.valueOf(it) }
+        
+        val transactions = searchTransactionsUseCase.execute(
             accountId = accountId,
-            transactionType = transactionType,
+            transactionType = type,
             status = status,
             currency = currency,
+            searchQuery = search,
             pageable = pageable
         )
         return ResponseEntity.ok(transactions)
@@ -63,10 +73,10 @@ class TransactionController(
     @GetMapping("/{id}")
     @Operation(
         summary = "Get transaction by ID",
-        description = "Returns a specific transaction by its ID"
+        description = "Returns a specific transaction by its ID with access control"
     )
     fun getTransaction(@PathVariable id: UUID): ResponseEntity<TransactionResponse> {
-        val transaction = transactionService.getTransactionById(id)
+        val transaction = getTransactionByIdUseCase.execute(id)
         return ResponseEntity.ok(transaction)
     }
 
@@ -105,8 +115,31 @@ class TransactionController(
         description = "Returns aggregated statistics including total income, expenses, and balance"
     )
     fun getStatistics(): ResponseEntity<TransactionStatistics> {
-        val statistics = transactionService.getStatistics()
+        val statistics = getTransactionStatisticsUseCase.execute()
         return ResponseEntity.ok(statistics)
+    }
+    
+    @PostMapping("/{id}/comments")
+    @Operation(
+        summary = "Add comment to transaction",
+        description = "Adds a comment/note to a specific transaction. Only the transaction owner can add comments."
+    )
+    fun addComment(
+        @PathVariable id: UUID,
+        @Valid @RequestBody request: AddCommentRequest
+    ): ResponseEntity<TransactionCommentResponse> {
+        val comment = addCommentToTransactionUseCase.execute(id, request)
+        return ResponseEntity.status(HttpStatus.CREATED).body(comment)
+    }
+    
+    @GetMapping("/{id}/comments")
+    @Operation(
+        summary = "Get transaction comments",
+        description = "Retrieves all comments for a specific transaction. Returns comments ordered by creation date (newest first)."
+    )
+    fun getComments(@PathVariable id: UUID): ResponseEntity<List<TransactionCommentResponse>> {
+        val comments = getTransactionCommentsUseCase.execute(id)
+        return ResponseEntity.ok(comments)
     }
 }
 

@@ -5,6 +5,7 @@ import com.example.finsplit.domain.TransactionType
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 import java.math.BigDecimal
@@ -12,7 +13,8 @@ import java.time.LocalDateTime
 import java.util.UUID
 
 @Repository
-interface TransactionRepository : JpaRepository<Transaction, UUID> {
+interface TransactionRepository : JpaRepository<Transaction, UUID>, JpaSpecificationExecutor<Transaction> {
+    fun findByUserId(userId: UUID): List<Transaction>
     fun findByUserId(userId: UUID, pageable: Pageable): Page<Transaction>
     
     fun findByUserIdAndTransactionDateBetween(
@@ -35,6 +37,12 @@ interface TransactionRepository : JpaRepository<Transaction, UUID> {
     fun findByUserIdAndExternalIdIn(userId: UUID, externalIds: List<String>): List<Transaction>
     
     fun findByFileId(fileId: UUID, pageable: Pageable): Page<Transaction>
+
+    fun findByAccountIdAndTransactionDateBetweenOrderByTransactionDateAsc(
+        accountId: UUID,
+        startDate: LocalDateTime,
+        endDate: LocalDateTime
+    ): List<Transaction>
     
     fun countByFileId(fileId: UUID): Long
     
